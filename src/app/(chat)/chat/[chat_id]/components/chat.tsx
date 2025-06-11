@@ -1,163 +1,150 @@
-'use client'
+"use client";
 
-// Suppression des importations des composants maintenant encapsulés
-// import { ChatContainerRoot, ChatContainerContent, ChatContainerScrollAnchor } from "@/components/chat-container"
-// import { AssistantMessage } from "@/core/chat/components/assistant-message"
-// import { UserMessage } from "@/core/chat/components/user-message"
-import { User } from "@supabase/supabase-js"
-import { conversations, messages } from "@/core/db/schema"
-import { useGetConversation } from "@/core/chat/hooks/use-conversations"
-import useUser from "@/core/auth/hook/use-user"
-import { useState, useRef, useEffect } from "react"
-import { useChat, type Message as AIChatMessage } from '@ai-sdk/react'
-import { useCreateMessage } from '@/core/chat/hooks/use-messages'
-import { Conversation } from "@/core/chat/components/conversation";
-import { ChatInput } from "@/core/chat/components/chat-input";
+import {
+  PromptInput,
+  PromptInputAction,
+  PromptInputActions,
+  PromptInputTextarea,
+} from "@/components/prompt-input";
+import { Button } from "@/components/ui/button";
+import { ArrowUp, MoreHorizontal, Mic, Plus, Globe } from "lucide-react";
+import React, { useState } from "react";
+import { ModelsSelector } from "@/core/chat/components/models-selector";
+import { availableModels } from "@/core/ai/types";
 
-// Suppression des importations de l'UI pour l'input, maintenant dans ChatInput
-// import {
-//   PromptInput,
-//   PromptInputAction,
-//   PromptInputActions,
-//   PromptInputTextarea,
-// } from "@/components/prompt-input"
-// import { Button } from "@/components/ui/button"
-// import { ArrowUp, Globe, Mic, MoreHorizontal, Plus } from "lucide-react"
-
-// Infer the base types from the schema
-type BaseConversation = typeof conversations.$inferSelect;
-type BaseMessage = typeof messages.$inferSelect;
-
-// Extend the Conversation type to include the 'messages' relation
-type ConversationWithMessages = BaseConversation & {
-  messages: BaseMessage[];
-};
+import { AssistantMessage } from "@/core/chat/components/assistant-message";
+import { UserMessage } from "@/core/chat/components/user-message";
+import {
+  ChatContainerContent,
+  ChatContainerRoot,
+  ChatContainerScrollAnchor,
+} from "@/components/chat-container";
+import { useChat, type Message } from "@ai-sdk/react";
+import { useGetConversation } from "@/core/chat/hooks/use-conversations";
+import useUser from "@/core/auth/hook/use-user";
+import { useCreateMessage } from "@/core/chat/hooks/use-messages";
 
 export const Chat = ({ conversationId }: { conversationId: string }) => {
-    const { data: conversation, isLoading, isError } = useGetConversation(conversationId);
-    const { data: user } = useUser();
+  const [selectedModel, setSelectedModel] = useState(availableModels[0].name);
+  const { data: conversation, isLoading } = useGetConversation(conversationId);
+  const userData = useUser();
+  const user = userData.data;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const createMessageMutation = useCreateMessage();
+  const { mutateAsync: createMessageInDb } = useCreateMessage();
 
-    // Transform database messages to AI SDK format for useChat
-    const initialMessages = conversation?.messages?.map(msg => ({
+  // Ensure initialMessages are always defined, even when conversation is not yet loaded
+  const initialMessages: Message[] =
+    conversation?.messages.map((msg) => ({
       id: msg.id,
-      role: msg.role === 'user' ? 'user' : (msg.role === 'assistant' ? 'assistant' : 'system'),
+      role: msg.role === "user" ? "user" : "assistant",
       content: msg.content,
+      createdAt: new Date(msg.createdAt),
     })) || [];
 
-    const {
-      messages: aiChatMessages,
-      input,
-      handleInputChange,
-      handleSubmit: handleAIChatSubmit,
-      isLoading: isAiLoading,
-      setMessages,
-    } = useChat({
-      initialMessages: initialMessages as AIChatMessage[],
-      id: conversationId,
-      onFinish: async (message: AIChatMessage) => {
-        if (message.role === 'assistant') {
-          try {
-            const aiMessage = await createMessageMutation.mutateAsync({
-              conversationId: conversationId,
-              role: 'assistant',
-              content: message.content,
-              model: 'ai-sdk-default',
-            });
-            console.log("AI message saved (chat page):", aiMessage);
-          } catch (error) {
-            console.error("Error saving AI message (chat page):", error);
-          }
-        }
-      }
-    });
-
-    // Update useChat messages when conversation data changes (e.g., after initial fetch)
-    useEffect(() => {
-      if (conversation && conversation.messages && aiChatMessages.length !== conversation.messages.length) {
-        setMessages(initialMessages as AIChatMessage[]);
-      }
-    }, [conversation, initialMessages, setMessages, aiChatMessages.length]);
-
-    // New useEffect to trigger AI response for the initial user message
-    useEffect(() => {
-        // Trigger AI response only if:
-        // 1. Loading is complete and there's no error
-        // 2. A conversation exists
-        // 3. There's exactly one message in aiChatMessages (meaning it's the initial user message)
-        // 4. The single message is from the user role
-        // 5. There is no existing assistant message in the conversation yet (to prevent re-triggering)
-        if (!isLoading && !isError && conversation && aiChatMessages.length === 1 && aiChatMessages[0].role === 'user') {
-            const hasAssistantMessage = conversation.messages.some(msg => msg.role === 'assistant');
-            if (!hasAssistantMessage) {
-                console.log("Triggering AI response for initial user message.");
-                const syntheticEvent = new Event('submit', {
-                    bubbles: true,
-                    cancelable: true,
-                }) as unknown as React.FormEvent<HTMLFormElement>;
-                handleAIChatSubmit(syntheticEvent);
-            }
-        }
-    }, [isLoading, isError, conversation, aiChatMessages, handleAIChatSubmit]);
-
-    const handlePromptInputChange = (value: string) => {
-      handleInputChange({
-        target: { value },
-      } as React.ChangeEvent<HTMLTextAreaElement>)
-    }
-
-    const handleCustomSubmit = async () => {
-      if (!user?.id) {
-        console.error("User not logged in or user ID not available.");
-        return;
-      }
-
-      const userMessageContent = input.trim();
-      if (!userMessageContent) return;
-
-      try {
-        const newUserMessage = await createMessageMutation.mutateAsync({
+  // Call useChat unconditionally at the top level
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit: aiSdkHandleSubmit,
+    isLoading: isChatLoading,
+  } = useChat({
+    initialMessages: initialMessages,
+    onFinish: async (message) => {
+      if (conversation?.selectedModel) {
+        await createMessageInDb({
           conversationId: conversationId,
-          role: 'user',
-          content: userMessageContent,
-          model: 'user-input',
+          role: 'assistant',
+          content: message.content,
+          model: conversation.selectedModel,
         });
-        console.log("User message saved (chat page):", newUserMessage);
-
-        const syntheticEvent = new Event('submit', {
-          bubbles: true,
-          cancelable: true,
-        }) as unknown as React.FormEvent<HTMLFormElement>;
-
-        handleAIChatSubmit(syntheticEvent); // Trigger AI response
-      } catch (error) {
-        console.error("Error saving user message (chat page):", error);
       }
-    };
+    },
+  });
 
-    if (isLoading) {
-      return <div>Loading conversation...</div>;
+  const userEmail = user?.email || "anonymous";
+
+  if (isLoading) {
+    return <div>Loading conversation...</div>;
+  }
+
+  if (!conversation) {
+    return <div>Conversation not found.</div>;
+  }
+
+  // Custom handleSubmit to save user message before sending to AI
+  const handleCustomSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!input.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    if (user?.id && conversation?.selectedModel) {
+      await createMessageInDb({
+        conversationId: conversationId,
+        role: 'user',
+        content: input,
+        model: conversation.selectedModel,
+      });
     }
 
-    if (isError) {
-      return <div>Error loading conversation.</div>;
-    }
+    aiSdkHandleSubmit(e);
+    setTimeout(() => setIsSubmitting(false), 1000);
+  };
 
-    if (!conversation) {
-      return <div>Conversation not found.</div>;
-    }
+  return (
+    <div className="relative flex flex-col h-[calc(100vh_-_var(--header-height))]">
+      <ChatContainerRoot className="flex-1 px-3 pb-[140px] md:px-5 md:pb-[140px] max-w-3xl mx-auto overflow-y-auto">
+        <ChatContainerContent className="flex-1 flex flex-col w-full max-w-3xl mx-auto py-8">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className="whitespace-pre-wrap mb-4 max-w-3xl"
+            >
+              {message.role === "assistant" ? (
+                <AssistantMessage key={`${message.id}`} content={message.content} />
+              ) : (
+                <UserMessage key={`${message.id}`} content={message.content} userEmail={userEmail} />
+              )}
+            </div>
+          ))}
+          <ChatContainerScrollAnchor />
+        </ChatContainerContent>
+      </ChatContainerRoot>
+      <div className="absolute bottom-0 left-0 right-0 mx-auto w-full max-w-3xl px-3 pb-3 md:px-5 md:pb-5 bg-background">
+        <PromptInput className="border-input bg-popover relative z-10 w-full rounded-3xl border p-0 pt-1 shadow-xs">
+          <form onSubmit={handleCustomSubmit} className="flex flex-col">
+            <PromptInputTextarea
+              placeholder="Ask anything"
+              className="min-h-[44px] pt-3 pl-4 text-base leading-[1.3] sm:text-base md:text-base"
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleCustomSubmit(e as any);
+                }
+              }}
+            />
 
-    return (
-      <div className="relative flex flex-col h-[calc(100vh_-_var(--header-height))]">
-        <Conversation messages={aiChatMessages} userEmail={user?.email ?? ""} />
-
-        <ChatInput
-          isLoading={isAiLoading}
-          value={input}
-          onValueChange={handlePromptInputChange}
-          onSubmit={handleCustomSubmit}
-        />
+            <PromptInputActions className="mt-5 flex w-full items-center justify-between gap-2 px-3 pb-3">
+              <div className="flex items-center gap-2">
+                <ModelsSelector
+                  value={selectedModel}
+                  onValueChange={setSelectedModel}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="icon" className="size-9 rounded-full" type="submit" disabled={isChatLoading || !input.trim()}>
+                  <ArrowUp size={18} />
+                </Button>
+              </div>
+            </PromptInputActions>
+          </form>
+        </PromptInput>
       </div>
-    );
+    </div>
+  );
 };

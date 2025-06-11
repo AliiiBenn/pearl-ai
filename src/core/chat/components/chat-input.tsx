@@ -29,7 +29,7 @@ export function ChatInput({ isLoading, value, onValueChange, onSubmit }: ChatInp
       >
         <div className="flex flex-col">
           <PromptInputTextarea
-            placeholder="Ask anything"
+            placeholder="Say something..."
             className="min-h-[44px] pt-3 pl-4 text-base leading-[1.3] sm:text-base md:text-base"
           />
 
@@ -74,9 +74,9 @@ export function ChatInput({ isLoading, value, onValueChange, onSubmit }: ChatInp
               </PromptInputAction>
 
               <Button
+                type="submit"
                 size="icon"
                 disabled={!value.trim() || isLoading}
-                onClick={onSubmit}
                 className="size-9 rounded-full"
               >
                 <ArrowUp size={18} />

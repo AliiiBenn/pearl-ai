@@ -15,7 +15,7 @@ interface AssistantMessageProps {
 
 export const AssistantMessage = ({ content }: AssistantMessageProps) => {
   return (
-    <Message className="group">
+    <Message className="group w-2xl">
       <MessageAvatar src="/path/to/ai-avatar.png" alt="AI" fallback="AI" />
       <div className="relative flex flex-col items-start">
         <MessageContent markdown={true}>

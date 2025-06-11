@@ -11,8 +11,6 @@ export default async function ChatPage({ params }: ChatPageProps) {
 
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh_-_var(--header-height))]">
       <Chat conversationId={chat_id} />
-    </div>
   );
 }

@@ -9,7 +9,7 @@ interface UserMessageProps {
 
 export const UserMessage = ({ content, userEmail }: UserMessageProps) => {
   return (
-    <Message className="group">
+    <Message className="group w-2xl">
       <MessageAvatar src={`https://avatar.vercel.sh/${userEmail}`} alt={userEmail} fallback={userEmail?.charAt(0).toUpperCase()} />
       <div className="relative flex flex-col items-end">
         <MessageContent className="bg-transparent">{content}</MessageContent>
