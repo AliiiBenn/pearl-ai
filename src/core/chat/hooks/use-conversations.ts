@@ -16,7 +16,8 @@ export function useGetConversation(conversationId: string) {
 export function useCreateConversation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ name, userId }: { name: string; userId: string }) => createConversation(name, userId),
+    mutationFn: ({ name, userId, selectedModel }: { name: string; userId: string; selectedModel: string }) =>
+      createConversation(name, userId, selectedModel),
     onSuccess: () => {
       // Invalidate the conversations cache to refresh the list
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
