@@ -42,9 +42,9 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
     handleSubmit: aiSdkHandleSubmit,
     isLoading: isChatLoading,
     reload,
-    setMessages,
+    setMessages, // Obtain setMessages from useChat
   } = useChat({
-    initialMessages: [],
+    initialMessages: [], // Initialize with an empty array to allow manual synchronization
     onFinish: async (message) => {
       if (conversation?.selectedModel) {
         await createMessageInDb({
@@ -58,30 +58,48 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
   });
 
   // Effect to synchronize messages from conversation to useChat's state
+  // This ensures that when conversation data updates (e.g., after a message is saved),
+  // the `useChat` hook's internal message state is also updated,
+  // making the UI reflect the latest messages from the database.
+  // Only update if not currently loading/streaming to prevent disrupting active streams.
   useEffect(() => {
-    if (conversation?.messages) {
+    if (conversation?.messages && !isChatLoading) {
       const newMessages = conversation.messages.map((msg) => ({
         id: msg.id,
-        role: (msg.role === "user" ? "user" : "assistant") as Message['role'],
+        role: (msg.role === "user" ? "user" : "assistant") as Message['role'], // Explicitly cast role
         content: msg.content,
         createdAt: new Date(msg.createdAt),
       }));
 
-      if (JSON.stringify(newMessages) !== JSON.stringify(messages)) {
+      // Compare lengths and the last message's ID to detect if a real update is needed.
+      // This avoids unnecessary re-renders and potential conflicts during streaming.
+      if (messages.length !== newMessages.length ||
+          (newMessages.length > 0 && messages.length > 0 && newMessages[newMessages.length - 1].id !== messages[messages.length - 1].id)
+      ) {
         setMessages(newMessages);
       }
     }
-  }, [conversation?.messages, setMessages, messages]);
+  }, [conversation?.messages, setMessages, isChatLoading, messages]);
 
   // Log and send message to AI if the chat has only one message on initial load
   useEffect(() => {
-    if (conversation && conversation.messages.length === 1 && conversation.messages[0].role === 'user' && !initialAiResponseTriggered) {
+    if (conversation && conversation.messages.length === 1 && conversation.messages[0].role === 'user' && !initialAiResponseTriggered && !isChatLoading) {
       console.log("Chat loaded with a single user message. Triggering AI response.");
+      // Ensure useChat's messages are synchronized with the database's initial user message
+      // before calling reload, to provide correct context to the AI.
+      if (messages.length === 0 || messages[0]?.id !== conversation.messages[0].id) {
+        setMessages(conversation.messages.map((msg) => ({
+            id: msg.id,
+            role: (msg.role === "user" ? "user" : "assistant") as Message['role'],
+            content: msg.content,
+            createdAt: new Date(msg.createdAt),
+        })));
+      }
       reload();
       setInitialAiResponseTriggered(true);
       console.log("fin")
     }
-  }, [conversation, reload, initialAiResponseTriggered]);
+  }, [conversation, reload, initialAiResponseTriggered, isChatLoading, messages, setMessages]);
 
   const userEmail = user?.email || "anonymous";
 
@@ -97,12 +115,20 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
   const handleCustomSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!input.trim() || isSubmitting) return;
+    if (!input.trim() || isSubmitting || isChatLoading) return; // Prevent submission if already submitting or chat is loading
 
-    setIsSubmitting(true);
+    setIsSubmitting(true); // Set submitting true to disable button immediately
+
+    // Temporarily add user message to useChat's state for immediate display
+    setMessages([...messages, {
+      id: `temp-${Date.now()}`, // Use a temporary unique ID
+      role: 'user',
+      content: input,
+      createdAt: new Date(),
+    } as Message]);
 
     if (user?.id && conversation?.selectedModel) {
-      await createMessageInDb({
+      await createMessageInDb({ // Await for persistence in the database
         conversationId: conversationId,
         role: 'user',
         content: input,
@@ -110,14 +136,14 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
       });
     }
 
-    aiSdkHandleSubmit(e);
-    setTimeout(() => setIsSubmitting(false), 1000);
+    aiSdkHandleSubmit(e); // Trigger AI SDK's submit handler
+    setIsSubmitting(false); // Set submitting false after aiSdkHandleSubmit initiates
   };
 
   return (
     <div className="relative flex flex-col h-[calc(100vh_-_var(--header-height))]">
       <ChatContainerRoot className="flex-1 px-3 pb-[140px] md:px-5 md:pb-[140px] max-w-3xl mx-auto overflow-y-auto">
-        <ChatContainerContent className="flex-1 flex flex-col w-full max-w-3xl mx-auto py-8">
+        <ChatContainerContent className="flex-1 flex flex-col w-full max-w-3xl mx-auto py-8 gap-6">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -130,7 +156,6 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
               )}
             </div>
           ))}
-          <ChatContainerScrollAnchor />
         </ChatContainerContent>
       </ChatContainerRoot>
       <div className="absolute bottom-0 left-0 right-0 mx-auto w-full max-w-3xl px-3 pb-3 md:px-5 md:pb-5 bg-background">

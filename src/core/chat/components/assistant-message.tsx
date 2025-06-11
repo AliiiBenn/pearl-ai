@@ -1,19 +1,33 @@
 import { Markdown } from "@/components/markdown";
 import { Message, MessageAvatar, MessageContent } from "@/components/message";
 import { Button } from "@/components/ui/button";
-import { CopyIcon, MoreVertical, RefreshCcw } from "lucide-react";
+import { CopyIcon, MoreVertical, RefreshCcw, CheckIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useState } from "react";
 
 interface AssistantMessageProps {
   content: string;
 }
 
 export const AssistantMessage = ({ content }: AssistantMessageProps) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch((err) => {
+        console.error("Failed to copy message: ", err);
+      });
+  };
+
   return (
     <Message className="group w-2xl">
       <MessageAvatar src="/path/to/ai-avatar.png" alt="AI" fallback="AI" />
@@ -26,8 +40,9 @@ export const AssistantMessage = ({ content }: AssistantMessageProps) => {
             variant="ghost"
             size="icon"
             className="size-8 text-muted-foreground"
+            onClick={handleCopy}
           >
-            <CopyIcon size={16} />
+            {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
