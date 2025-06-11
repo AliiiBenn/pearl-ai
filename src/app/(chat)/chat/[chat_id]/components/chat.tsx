@@ -8,7 +8,7 @@ import {
 } from "@/components/prompt-input";
 import { Button } from "@/components/ui/button";
 import { ArrowUp, MoreHorizontal, Mic, Plus, Globe } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ModelsSelector } from "@/core/chat/components/models-selector";
 import { availableModels } from "@/core/ai/types";
 
@@ -30,17 +30,9 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
   const userData = useUser();
   const user = userData.data;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [initialAiResponseTriggered, setInitialAiResponseTriggered] = useState(false);
 
   const { mutateAsync: createMessageInDb } = useCreateMessage();
-
-  // Ensure initialMessages are always defined, even when conversation is not yet loaded
-  const initialMessages: Message[] =
-    conversation?.messages.map((msg) => ({
-      id: msg.id,
-      role: msg.role === "user" ? "user" : "assistant",
-      content: msg.content,
-      createdAt: new Date(msg.createdAt),
-    })) || [];
 
   // Call useChat unconditionally at the top level
   const {
@@ -49,8 +41,10 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
     handleInputChange,
     handleSubmit: aiSdkHandleSubmit,
     isLoading: isChatLoading,
+    reload,
+    setMessages,
   } = useChat({
-    initialMessages: initialMessages,
+    initialMessages: [],
     onFinish: async (message) => {
       if (conversation?.selectedModel) {
         await createMessageInDb({
@@ -62,6 +56,32 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
       }
     },
   });
+
+  // Effect to synchronize messages from conversation to useChat's state
+  useEffect(() => {
+    if (conversation?.messages) {
+      const newMessages = conversation.messages.map((msg) => ({
+        id: msg.id,
+        role: (msg.role === "user" ? "user" : "assistant") as Message['role'],
+        content: msg.content,
+        createdAt: new Date(msg.createdAt),
+      }));
+
+      if (JSON.stringify(newMessages) !== JSON.stringify(messages)) {
+        setMessages(newMessages);
+      }
+    }
+  }, [conversation?.messages, setMessages, messages]);
+
+  // Log and send message to AI if the chat has only one message on initial load
+  useEffect(() => {
+    if (conversation && conversation.messages.length === 1 && conversation.messages[0].role === 'user' && !initialAiResponseTriggered) {
+      console.log("Chat loaded with a single user message. Triggering AI response.");
+      reload();
+      setInitialAiResponseTriggered(true);
+      console.log("fin")
+    }
+  }, [conversation, reload, initialAiResponseTriggered]);
 
   const userEmail = user?.email || "anonymous";
 
@@ -137,7 +157,7 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Button size="icon" className="size-9 rounded-full" type="submit" disabled={isChatLoading || !input.trim()}>
+                <Button size="icon" className="size-9 rounded-full" type="submit" disabled={isChatLoading || !input.trim() || isSubmitting}>
                   <ArrowUp size={18} />
                 </Button>
               </div>
