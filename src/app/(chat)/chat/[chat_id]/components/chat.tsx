@@ -142,8 +142,8 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
 
   return (
     <div className="relative flex flex-col h-[calc(100vh_-_var(--header-height))]">
-      <ChatContainerRoot className="flex-1 px-3 pb-[140px] md:px-5 md:pb-[140px] max-w-3xl mx-auto overflow-y-auto">
-        <ChatContainerContent className="flex-1 flex flex-col w-full max-w-3xl mx-auto py-8 gap-6">
+      <ChatContainerRoot className="flex-1 px-3 pb-[140px] md:px-5 md:pb-[140px] mx-auto overflow-y-auto">
+        <ChatContainerContent className="flex-1 flex flex-col w-full mx-auto py-8 gap-6">
           {messages.map((message) => (
             <div
               key={message.id}
