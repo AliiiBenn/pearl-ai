@@ -1,0 +1,1 @@
+ALTER TABLE "conversations" ADD COLUMN "selected_model" varchar(256) NOT NULL;
