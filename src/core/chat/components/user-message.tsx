@@ -2,14 +2,26 @@ import { Message, MessageAvatar, MessageContent } from "@/components/message";
 import { Button } from "@/components/ui/button";
 import { PencilIcon, CopyIcon, CheckIcon } from "lucide-react";
 import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface UserMessageProps {
   content: string;
   userEmail: string;
+  onMessageEdit: (newContent: string) => void;
 }
 
-export const UserMessage = ({ content, userEmail }: UserMessageProps) => {
+export const UserMessage = ({ content, userEmail, onMessageEdit }: UserMessageProps) => {
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(content);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content)
@@ -20,6 +32,11 @@ export const UserMessage = ({ content, userEmail }: UserMessageProps) => {
       .catch((err) => {
         console.error("Failed to copy message: ", err);
       });
+  };
+
+  const handleSave = () => {
+    onMessageEdit(editedContent);
+    setIsEditing(false);
   };
 
   return (
@@ -41,10 +58,32 @@ export const UserMessage = ({ content, userEmail }: UserMessageProps) => {
             variant="ghost"
             size="icon"
             className="size-8 opacity-0 transition-opacity group-hover:opacity-100"
+            onClick={() => setIsEditing(true)}
           >
             <PencilIcon size={16} />
           </Button>
         </div>
+
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Message</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={editedContent}
+            onChange={(e) => setEditedContent(e.target.value)}
+            rows={5}
+          />
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setIsEditing(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={handleSave}>
+              Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Message>
   );
 };

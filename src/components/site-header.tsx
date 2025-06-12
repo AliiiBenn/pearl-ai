@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { AuthDisplay } from "@/core/auth/components/auth-display"
+import { PlusIcon } from "lucide-react"
+import Link from "next/link"
 
 export function SiteHeader() {
   return (
@@ -12,6 +14,11 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
+        <Button size={"icon"} variant={"outline"} asChild>
+          <Link href="/">
+            <PlusIcon />
+          </Link>
+        </Button>
         <h1 className="text-base font-medium">Documents</h1>
         <div className="ml-auto flex items-center gap-2">
           <AuthDisplay />

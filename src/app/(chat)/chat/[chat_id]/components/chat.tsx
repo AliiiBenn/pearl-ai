@@ -22,7 +22,14 @@ import {
 import { useChat, type Message } from "@ai-sdk/react";
 import { useGetConversation } from "@/core/chat/hooks/use-conversations";
 import useUser from "@/core/auth/hook/use-user";
-import { useCreateMessage } from "@/core/chat/hooks/use-messages";
+import { useCreateMessage, useUpdateMessageAndTruncate } from "@/core/chat/hooks/use-messages";
+import { ToolInvocation } from "ai";
+
+// No need for CustomMessage here if we just ensure content is always a string.
+// interface CustomMessage extends Message {
+//   parts: Message['parts']; // Use the 'parts' type from AI SDK's Message for consistency
+//   content: string | null; // Allow content to be null
+// }
 
 export const Chat = ({ conversationId }: { conversationId: string }) => {
   const [selectedModel, setSelectedModel] = useState(availableModels[0].name);
@@ -31,10 +38,11 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
   const user = userData.data;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialAiResponseTriggered, setInitialAiResponseTriggered] = useState(false);
+  const [shouldReloadAfterEdit, setShouldReloadAfterEdit] = useState(false);
 
   const { mutateAsync: createMessageInDb } = useCreateMessage();
+  const { mutateAsync: updateMessageAndTruncate } = useUpdateMessageAndTruncate();
 
-  // Call useChat unconditionally at the top level
   const {
     messages,
     input,
@@ -44,62 +52,102 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
     reload,
     setMessages, // Obtain setMessages from useChat
   } = useChat({
-    initialMessages: [], // Initialize with an empty array to allow manual synchronization
+    initialMessages: [],
     onFinish: async (message) => {
+      console.log("onFinish triggered. Full Message object (from useChat):", message);
       if (conversation?.selectedModel) {
-        await createMessageInDb({
+        const fullTextContent = message.parts
+          .filter(part => part.type === 'text')
+          .map(part => part.text)
+          .join('');
+
+        const savedMessage = await createMessageInDb({
           conversationId: conversationId,
           role: 'assistant',
-          content: message.content,
+          content: fullTextContent,
           model: conversation.selectedModel,
+          rawParts: message.parts,
+        });
+        console.log("Assistant message saved to DB with rawParts and aggregated content:", fullTextContent);
+
+        setMessages(prevMessages => {
+          const updatedPrevMessages = prevMessages.map(msg =>
+            msg.id === message.id
+              ? {
+                  ...msg,
+                  content: savedMessage.content || '',
+                  parts: savedMessage.rawParts || [{ type: 'text', text: savedMessage.content || '' }],
+                  id: savedMessage.id
+                }
+              : msg
+          );
+
+          if (!updatedPrevMessages.find(msg => msg.id === savedMessage.id)) {
+            updatedPrevMessages.push({
+              id: savedMessage.id,
+              role: savedMessage.role as Message['role'],
+              content: savedMessage.content || '',
+              createdAt: new Date(savedMessage.createdAt),
+              parts: savedMessage.rawParts || [{ type: 'text', text: savedMessage.content || '' }],
+            });
+          }
+          return updatedPrevMessages;
         });
       }
     },
+    maxSteps: 5,
+    onToolCall: async ({ toolCall }) => {
+      console.log("onToolCall triggered. Tool Call:", toolCall);
+    }
   });
 
-  // Effect to synchronize messages from conversation to useChat's state
-  // This ensures that when conversation data updates (e.g., after a message is saved),
-  // the `useChat` hook's internal message state is also updated,
-  // making the UI reflect the latest messages from the database.
-  // Only update if not currently loading/streaming to prevent disrupting active streams.
   useEffect(() => {
-    if (conversation?.messages && !isChatLoading) {
+    if (conversation?.messages) {
       const newMessages = conversation.messages.map((msg) => ({
         id: msg.id,
-        role: (msg.role === "user" ? "user" : "assistant") as Message['role'], // Explicitly cast role
-        content: msg.content,
+        role: (msg.role === "user" ? "user" : "assistant") as Message['role'],
+        content: msg.content || '',
         createdAt: new Date(msg.createdAt),
+        parts: (msg as any).rawParts || [{ type: 'text', text: msg.content || '' }],
       }));
-
-      // Compare lengths and the last message's ID to detect if a real update is needed.
-      // This avoids unnecessary re-renders and potential conflicts during streaming.
-      if (messages.length !== newMessages.length ||
-          (newMessages.length > 0 && messages.length > 0 && newMessages[newMessages.length - 1].id !== messages[messages.length - 1].id)
-      ) {
-        setMessages(newMessages);
-      }
+      console.log("Synchronizing messages to useChat state:", newMessages);
+      setMessages(newMessages);
     }
-  }, [conversation?.messages, setMessages, isChatLoading, messages]);
+  }, [conversation?.messages, setMessages]);
 
-  // Log and send message to AI if the chat has only one message on initial load
   useEffect(() => {
     if (conversation && conversation.messages.length === 1 && conversation.messages[0].role === 'user' && !initialAiResponseTriggered && !isChatLoading) {
       console.log("Chat loaded with a single user message. Triggering AI response.");
-      // Ensure useChat's messages are synchronized with the database's initial user message
-      // before calling reload, to provide correct context to the AI.
       if (messages.length === 0 || messages[0]?.id !== conversation.messages[0].id) {
         setMessages(conversation.messages.map((msg) => ({
             id: msg.id,
             role: (msg.role === "user" ? "user" : "assistant") as Message['role'],
-            content: msg.content,
+            content: msg.content || '',
             createdAt: new Date(msg.createdAt),
+            parts: (msg as any).rawParts || [{ type: 'text', text: msg.content || '' }],
         })));
       }
       reload();
       setInitialAiResponseTriggered(true);
-      console.log("fin")
+      console.log("Initial AI response triggered for single user message.");
     }
   }, [conversation, reload, initialAiResponseTriggered, isChatLoading, messages, setMessages]);
+
+  const handleMessageEdit = async (messageId: string, newContent: string) => {
+    try {
+      await updateMessageAndTruncate({ messageId, newContent });
+      setShouldReloadAfterEdit(true);
+    } catch (error) {
+      console.error("Error editing message:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (shouldReloadAfterEdit && !isChatLoading) {
+      reload();
+      setShouldReloadAfterEdit(false);
+    }
+  }, [shouldReloadAfterEdit, isChatLoading, reload]);
 
   const userEmail = user?.email || "anonymous";
 
@@ -111,24 +159,15 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
     return <div>Conversation not found.</div>;
   }
 
-  // Custom handleSubmit to save user message before sending to AI
   const handleCustomSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!input.trim() || isSubmitting || isChatLoading) return; // Prevent submission if already submitting or chat is loading
+    if (!input.trim() || isSubmitting || isChatLoading) return;
 
-    setIsSubmitting(true); // Set submitting true to disable button immediately
-
-    // Temporarily add user message to useChat's state for immediate display
-    setMessages([...messages, {
-      id: `temp-${Date.now()}`, // Use a temporary unique ID
-      role: 'user',
-      content: input,
-      createdAt: new Date(),
-    } as Message]);
+    setIsSubmitting(true);
 
     if (user?.id && conversation?.selectedModel) {
-      await createMessageInDb({ // Await for persistence in the database
+      await createMessageInDb({
         conversationId: conversationId,
         role: 'user',
         content: input,
@@ -136,26 +175,38 @@ export const Chat = ({ conversationId }: { conversationId: string }) => {
       });
     }
 
-    aiSdkHandleSubmit(e); // Trigger AI SDK's submit handler
-    setIsSubmitting(false); // Set submitting false after aiSdkHandleSubmit initiates
+    aiSdkHandleSubmit(e);
+    setIsSubmitting(false);
   };
 
   return (
     <div className="relative flex flex-col h-[calc(100vh_-_var(--header-height))]">
       <ChatContainerRoot className="flex-1 px-3 pb-[140px] md:px-5 md:pb-[140px] mx-auto overflow-y-auto">
         <ChatContainerContent className="flex-1 flex flex-col w-full mx-auto py-8 gap-6">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className="whitespace-pre-wrap mb-4 max-w-3xl"
-            >
-              {message.role === "assistant" ? (
-                <AssistantMessage key={`${message.id}`} content={message.content} />
-              ) : (
-                <UserMessage key={`${message.id}`} content={message.content} userEmail={userEmail} />
-              )}
-            </div>
-          ))}
+          {messages.map((message) => {
+            if (!message) {
+              console.warn("Skipping rendering of an undefined message.", message);
+              return null;
+            }
+
+            return (
+              <div
+                key={message.id}
+                className="whitespace-pre-wrap mb-4 max-w-3xl"
+              >
+                {message.role === "assistant" ? (
+                  <AssistantMessage key={`${message.id}`} message={message} />
+                ) : (
+                  <UserMessage
+                    key={`${message.id}`}
+                    content={message.content}
+                    userEmail={userEmail}
+                    onMessageEdit={(newContent) => handleMessageEdit(message.id, newContent)}
+                  />
+                )}
+              </div>
+            );
+          })}
         </ChatContainerContent>
       </ChatContainerRoot>
       <div className="absolute bottom-0 left-0 right-0 mx-auto w-full max-w-3xl px-3 pb-3 md:px-5 md:pb-5 bg-background">
