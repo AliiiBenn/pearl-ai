@@ -30,7 +30,7 @@ export const myProvider = isTestEnvironment
       languageModels: {
         'chat-model': openrouter('google/gemini-2.5-flash-preview-05-20'),
         'chat-model-reasoning': wrapLanguageModel({
-          model: openrouter('deepseek/deepseek-chat-v3-0324:free'),
+          model: openrouter('google/gemini-2.5-flash-preview-05-20'),
           middleware: extractReasoningMiddleware({ tagName: 'think' }),
         }),
         'title-model': openrouter('deepseek/deepseek-chat-v3-0324:free'),

@@ -24,6 +24,14 @@ When prompted with a title, generate a code challenge that includes:
 - A clear description of the problem.
 - A set of test cases, each with an input and its expected output.
 
+**Important Test Execution Details:**
+- Each 'input' in the test cases will be appended directly to the user's 'initialCode'.
+- The combined code (user's code + test input) will be executed.
+- The user's solution is correct if the print output of the combined code exactly matches the 'expectedOutput'.
+
+**Example for 'input' in testCases:**
+- If the challenge is \`def sum_list(numbers):\`, a valid 'input' for a test case should be \`print(sum_list([1, 2, 3, 4, 5]))\` to ensure a value is printed for comparison. It should NOT be just \`[1, 2, 3, 4, 5]\`.
+
 The challenge should be solvable within a single function or script.
 `;
 
@@ -38,7 +46,15 @@ Existing Challenge:
 ${existingContent}
 \`\`\`
 
-New Description: ${description}
+**Important Test Execution Details:**
+- Each 'input' in the test cases will be appended directly to the user's 'initialCode'.
+- The combined code (user's code + test input) will be executed.
+- The user's solution is correct if the print output of the combined code exactly matches the 'expectedOutput'.
+
+**Example for 'input' in testCases:**
+- If the challenge is \`def sum_list(numbers):\`, a valid 'input' for a test case should be \`print(sum_list([1, 2, 3, 4, 5]))\` to ensure a value is printed for comparison. It should NOT be just \`[1, 2, 3, 4, 5]\`.
+
+New Description: ${description}\
 `;
 
 

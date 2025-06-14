@@ -20,6 +20,7 @@ import { useSearchParams } from 'next/navigation';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
+import { User } from '@supabase/supabase-js';
 
 export function Chat({
   id,
@@ -35,7 +36,7 @@ export function Chat({
   initialChatModel: string;
   initialVisibilityType: VisibilityType;
   isReadonly: boolean;
-  session: Session;
+  session: User;
   autoResume: boolean;
 }) {
   const { mutate } = useSWRConfig();
@@ -121,10 +122,9 @@ export function Chat({
       <div className="flex flex-col min-w-0 h-dvh bg-background">
         <ChatHeader
           chatId={id}
-          selectedModelId={initialChatModel}
           selectedVisibilityType={initialVisibilityType}
           isReadonly={isReadonly}
-          session={session}
+          user={session}
         />
 
         <Messages
@@ -153,6 +153,8 @@ export function Chat({
               setMessages={setMessages}
               append={append}
               selectedVisibilityType={visibilityType}
+              selectedModelId={initialChatModel}
+              user={session}
             />
           )}
         </form>

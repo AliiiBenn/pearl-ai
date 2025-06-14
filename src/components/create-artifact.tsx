@@ -3,6 +3,7 @@ import { UseChatHelpers } from '@ai-sdk/react';
 import { ComponentType, Dispatch, ReactNode, SetStateAction } from 'react';
 import { DataStreamDelta } from './data-stream-handler';
 import { UIArtifact } from './artifact';
+import { ButtonProps } from './ui/button';
 
 export type ArtifactActionContext<M = any> = {
   content: string;
@@ -21,6 +22,7 @@ type ArtifactAction<M = any> = {
   description: string;
   onClick: (context: ArtifactActionContext<M>) => Promise<void> | void;
   isDisabled?: (context: ArtifactActionContext<M>) => boolean;
+  variant?: ButtonProps['variant'];
 };
 
 export type ArtifactToolbarContext = {

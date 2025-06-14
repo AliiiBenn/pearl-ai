@@ -51,8 +51,8 @@ function PureArtifactActions({
         <Tooltip key={action.description}>
           <TooltipTrigger asChild>
             <Button
-              variant="outline"
-              className={cn('h-fit dark:hover:bg-zinc-700', {
+              variant={action.variant || 'outline'}
+              className={cn('h-fit', {
                 'p-2': !action.label,
                 'py-1.5 px-2': action.label,
               })}

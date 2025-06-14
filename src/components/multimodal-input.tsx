@@ -27,6 +27,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
+import { ModelSelector } from './model-selector';
+import { User } from '@supabase/supabase-js';
 
 function PureMultimodalInput({
   chatId,
@@ -42,6 +44,8 @@ function PureMultimodalInput({
   handleSubmit,
   className,
   selectedVisibilityType,
+  selectedModelId,
+  user,
 }: {
   chatId: string;
   input: UseChatHelpers['input'];
@@ -56,6 +60,8 @@ function PureMultimodalInput({
   handleSubmit: UseChatHelpers['handleSubmit'];
   className?: string;
   selectedVisibilityType: VisibilityType;
+  selectedModelId: string;
+  user: User;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -291,8 +297,13 @@ function PureMultimodalInput({
         }}
       />
 
-      <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
+      <div className="absolute bottom-0 left-0 p-2 flex flex-row items-center gap-1">
         <AttachmentsButton fileInputRef={fileInputRef} status={status} />
+        <ModelSelector
+          session={{ user: user }}
+          selectedModelId={selectedModelId}
+          className="order-1"
+        />
       </div>
 
       <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
@@ -318,6 +329,8 @@ export const MultimodalInput = memo(
     if (!equal(prevProps.attachments, nextProps.attachments)) return false;
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType)
       return false;
+    if (prevProps.selectedModelId !== nextProps.selectedModelId) return false;
+    if (!equal(prevProps.user, nextProps.user)) return false;
 
     return true;
   },
