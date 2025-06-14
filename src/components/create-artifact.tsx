@@ -49,6 +49,7 @@ interface ArtifactContent<M = any> {
   isLoading: boolean;
   metadata: M;
   setMetadata: Dispatch<SetStateAction<M>>;
+  documentId: string;
 }
 
 interface InitializeParameters<M = any> {

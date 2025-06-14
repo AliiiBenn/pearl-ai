@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     ).toResponse();
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -110,7 +110,7 @@ export async function DELETE(request: Request) {
     ).toResponse();
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

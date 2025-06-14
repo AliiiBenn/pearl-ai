@@ -459,22 +459,19 @@ function PureArtifact({
             <div className="dark:bg-muted bg-background h-full overflow-y-scroll max-w-full! items-center">
               <artifactDefinition.content
                 title={artifact.title}
-                content={
-                  isCurrentVersion
-                    ? artifact.content
-                    : getDocumentContentById(currentVersionIndex)
-                }
+                content={document ? document.content ?? '' : artifact.content}
                 mode={mode}
-                status={artifact.status}
+                isCurrentVersion={isCurrentVersion}
                 currentVersionIndex={currentVersionIndex}
+                status={artifact.status}
                 suggestions={[]}
                 onSaveContent={saveContent}
-                isInline={false}
-                isCurrentVersion={isCurrentVersion}
+                isInline={!isSidebarOpen}
                 getDocumentContentById={getDocumentContentById}
-                isLoading={isDocumentsFetching && !artifact.content}
+                isLoading={isDocumentsFetching}
                 metadata={metadata}
                 setMetadata={setMetadata}
+                documentId={artifact.documentId}
               />
 
               <AnimatePresence>

@@ -5,7 +5,7 @@ import { createDocumentHandler } from '@/lib/artifacts/server';
 
 // Define the schema for a code challenge
 export const codeChallengeSchema = z.object({
-  language: z.string().describe('The programming language for the challenge (e.g., python, javascript).'),
+  language: z.enum(['python', 'javascript', 'typescript']).describe('The programming language for the challenge (python, javascript, or typescript).'),
   initialCode: z.string().describe('The initial code snippet for the challenge.'),
   tests: z.array(
     z.object({

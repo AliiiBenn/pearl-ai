@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { compileCode } from '../compiler'
 import { submitCode } from '../submissions/index.client'
 // import { submitCode } from '@/core/challenges/submissions/index.client'
+import { AcceptedSubmission } from '../submissions/index.client'
 
 // Define supported languages
 export const SUPPORTED_LANGUAGES = ['python', 'javascript', 'typescript'] as const
@@ -23,6 +24,7 @@ type TestResult = {
 
 // Renamed from CodeVersion to ChallengeData to reflect the single challenge concept
 type ChallengeData = {
+  id: string
   language: SupportedLanguage
   initialCode: string
   testCases: Array<{
@@ -60,6 +62,10 @@ interface ChallengeEditorStore {
   setIsLoadingSubmit: (isLoading: boolean) => void
   // Add testCases to the store directly
   testCases: Array<{ input: string; expectedOutput: string }>;
+  challengeId: string | undefined
+  challengeInitialCode: string
+  isCompleted: boolean
+  setIsCompleted: (completed: boolean) => void
 }
 
 export const useChallengeEditorStore = create<ChallengeEditorStore>()(
@@ -75,13 +81,16 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
       isLoadingRun: false,
       isLoadingSubmit: false,
       testCases: [], // Initialize empty
+      challengeId: undefined,
+      challengeInitialCode: '',
+      isCompleted: false,
 
       setIsLoadingRun: (isLoading) => set({ isLoadingRun: isLoading }),
       setIsLoadingSubmit: (isLoading) => set({ isLoadingSubmit: isLoading }),
 
       // Initialize with a single challenge object
       initialize: (challenge: ChallengeData) => {
-        if (!challenge) return
+        if (!challenge) return;
 
         set({
           code: challenge.initialCode,
@@ -89,7 +98,9 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
           testResults: [],
           testCases: challenge.testCases,
           availableLanguages: [{ value: challenge.language, label: challenge.language.charAt(0).toUpperCase() + challenge.language.slice(1) }],
-        })
+          challengeId: challenge.id,
+          challengeInitialCode: challenge.initialCode,
+        });
       },
 
       run: async () => {
@@ -134,6 +145,7 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
           toggleTerminal,
           testCases, // Get testCases from store
           setIsLoadingSubmit,
+          setIsCompleted,
         } = get()
 
         setIsLoadingSubmit(true)
@@ -157,17 +169,20 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
 
         try {
           console.log(code)
-          // The submission logic here needs to be re-evaluated since 'submitCode' is commented out.
-          // For now, I'll keep the structure similar but acknowledge the dependency.
           const submission = await submitCode(
             { content: code, language: currentLanguage },
-            testCases.map((tc) => ({ // Use testCases directly
+            testCases.map((tc) => ({
               input: { content: tc.input, language: currentLanguage },
               expectedOutput: { content: tc.expectedOutput, language: currentLanguage },
             })),
           )
 
-          // console.log('submission', submission)
+          if (submission.type === 'accepted') {
+            setIsCompleted(true)
+            console.log("Challenge Accomplished!")
+          } else {
+            setIsCompleted(false)
+          }
 
           console.log('config tests', testCases) // Use testCases directly
           const testResults = await Promise.all(
@@ -186,6 +201,7 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
               // This part assumes 'submission' exists and has 'testsPassed'
               // Since 'submitCode' is commented, this logic needs review.
               // For now, setting success based on expected vs actual output
+              console.log(cleanOutput, tc.expectedOutput)
               const success = cleanOutput === tc.expectedOutput;
 
               return {
@@ -199,6 +215,7 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
 
           setTestResults(testResults)
         } catch (error) {
+          setIsCompleted(false)
           setTestResults([
             {
               success: false,
@@ -222,12 +239,17 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
       setActiveTerminalTab: (tab) => set({ activeTerminalTab: tab }),
       setExecutionOutput: (output) => set({ executionOutput: output }),
       setTestResults: (results) => set({ testResults: results }),
+      setIsCompleted: (completed) => set({ isCompleted: completed }),
     }),
     {
       name: 'challenge-editor-store',
       partialize: (state) => ({
-        code: state.code, // Partialize 'code' instead of 'codeByLanguage'
+        code: state.code,
         currentLanguage: state.currentLanguage,
+        challengeId: state.challengeId,
+        challengeInitialCode: state.challengeInitialCode,
+        testCases: state.testCases,
+        isCompleted: state.isCompleted,
       }),
     },
   ),

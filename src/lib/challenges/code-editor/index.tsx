@@ -18,6 +18,7 @@ const ChallengeIDEContainer = ({ children }: { children: React.ReactNode }) => {
 }
 
 type Challenge = {
+  id: string
   language: "javascript" | "python" | "typescript"
   initialCode: string
   testCases: Array<{
@@ -30,20 +31,17 @@ type ChallengeIDEProps = {
   onRun?: () => void
   onSubmit?: () => void
   onChange?: (code: string) => void
-  challenge?: Challenge
+  challenge: Challenge
 }
 
 export const ChallengeIDE = (props: ChallengeIDEProps) => {
-  const initialize = useChallengeEditorStore((state) => state.initialize)
-
-  console.log(props.challenge?.testCases)
-
+  const { initialize, challengeId: currentChallengeIdInStore } = useChallengeEditorStore()
 
   useEffect(() => {
-    if (props.challenge) {
+    if (props.challenge.id !== currentChallengeIdInStore) {
       initialize(props.challenge)
     }
-  }, [props.challenge, initialize])
+  }, [props.challenge.id, initialize, currentChallengeIdInStore])
 
   return (
     <ChallengeIDEContainer>

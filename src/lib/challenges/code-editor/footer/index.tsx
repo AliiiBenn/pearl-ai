@@ -3,7 +3,7 @@
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
-import { Beaker, ChevronDown, ChevronUp, FileOutput, CheckCircle, XCircle } from 'lucide-react'
+import { Beaker, ChevronDown, ChevronUp, FileOutput, CheckCircle, XCircle, CircleDot, Circle } from 'lucide-react'
 import { useChallengeEditorStore, TerminalTab } from '../store'
 
 const TERMINAL_STYLE = {
@@ -22,6 +22,53 @@ export type TestResult = {
   expectedOutput: string
   actualOutput: string
 }
+
+// type CompletionStatus = 'not_started' | 'in_progress' | 'completed'
+
+// const statusConfig: Record<
+//   CompletionStatus,
+//   { icon: React.ReactNode; color: string; label: string }
+// > = {
+//   completed: {
+//     icon: <CheckCircle size={16} />,
+//     color: 'green',
+//     label: 'Completed',
+//   },
+//   in_progress: {
+//     icon: <CircleDot size={16} />,
+//     color: 'amber',
+//     label: 'In Progress',
+//   },
+//   not_started: {
+//     icon: <Circle size={16} />,
+//     color: 'gray',
+//     label: 'Not Started',
+//   },
+// }
+
+// const ChallengeStatusDisplay = () => {
+//   const { isCompleted, challengeId } = useChallengeEditorStore();
+
+//   if (!challengeId) {
+//     return null;
+//   }
+
+//   let visualStatus: CompletionStatus;
+//   if (isCompleted) {
+//     visualStatus = 'completed';
+//   } else {
+//     visualStatus = 'not_started';
+//   }
+
+//   const { icon, color, label } = statusConfig[visualStatus];
+
+//   return (
+//     <div className={`flex items-center gap-1.5 text-${color}-500`}>
+//       {icon}
+//       <span className="text-sm font-medium">{label}</span>
+//     </div>
+//   );
+// };
 
 export const TerminalTabs = () => {
   const { 
@@ -62,16 +109,19 @@ export const TerminalTabs = () => {
         </TabsList>
       </Tabs>
 
-      <div
-        className="flex items-center cursor-pointer p-1 hover:bg-muted rounded-sm"
-        onClick={toggleTerminalOpen}
-        title={isTerminalOpen ? 'Close terminal' : 'Open terminal'}
-      >
-        {isTerminalOpen ? (
-          <ChevronDown size={16} className="text-muted-foreground" />
-        ) : (
-          <ChevronUp size={16} className="text-muted-foreground" />
-        )}
+      <div className="flex items-center gap-2">
+        {/* <ChallengeStatusDisplay /> */}
+        <div
+          className="flex items-center cursor-pointer p-1 hover:bg-muted rounded-sm"
+          onClick={toggleTerminalOpen}
+          title={isTerminalOpen ? 'Close terminal' : 'Open terminal'}
+        >
+          {isTerminalOpen ? (
+            <ChevronDown size={16} className="text-muted-foreground" />
+          ) : (
+            <ChevronUp size={16} className="text-muted-foreground" />
+          )}
+        </div>
       </div>
     </div>
   )

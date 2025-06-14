@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { ChallengeEditor, ChallengeEditorContainer } from '@/lib/challenges/code-editor/editor';
 import { ChallengeIDE } from '@/lib/challenges/code-editor';
 import { useChallengeEditorStore } from '@/lib/challenges/code-editor/store';
+import { useEffect } from 'react';
 
 interface CodeChallengeMetadata {
   outputs: Array<ConsoleOutput>;
@@ -14,6 +15,7 @@ interface CodeChallengeMetadata {
   initialCode: string;
   tests: Array<{ input: string; expectedOutput: string }>;
   description: string;
+  isCompleted: boolean;
 }
 
 export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata>({
@@ -26,6 +28,7 @@ export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata
       initialCode: '',
       tests: [],
       description: 'Loading challenge...',
+      isCompleted: false,
     };
 
     try {
@@ -37,15 +40,26 @@ export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata
           initialCode: parsedContent.initialCode || '',
           tests: parsedContent.tests || [],
           description: parsedContent.description || 'Challenge description.',
+          isCompleted: parsedContent.isCompleted || false,
         };
       }
     } catch (error) {
       console.error('Error parsing challenge content:', error);
+      challengeData = {
+        outputs: [],
+        language: '',
+        initialCode: '',
+        tests: [],
+        description: 'Failed to load challenge data or new challenge.',
+        isCompleted: false,
+      };
     }
 
     setMetadata(challengeData);
   },
   onStreamPart: ({ streamPart, setArtifact, setMetadata }) => {
+    const { initialize: initializeChallengeStore } = useChallengeEditorStore.getState();
+
     if (streamPart.type === 'challenge-delta') {
       const challengeData = JSON.parse(streamPart.content as string);
       setArtifact((draftArtifact) => ({
@@ -60,11 +74,38 @@ export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata
         initialCode: challengeData.initialCode,
         tests: challengeData.tests,
         description: challengeData.description,
+        isCompleted: challengeData.isCompleted || false,
       }));
+
+      initializeChallengeStore({
+        id: (streamPart as any).documentId || 'generated-challenge',
+        language: challengeData.language,
+        initialCode: challengeData.initialCode,
+        testCases: challengeData.tests,
+      });
     }
   },
   content: ({ metadata, setMetadata, content: rawContent, onSaveContent, ...restOfProps }) => {
-    if (!metadata) {
+    const { isCompleted: isChallengeCompletedInStore } = useChallengeEditorStore();
+
+    useEffect(() => {
+      if (isChallengeCompletedInStore && !metadata.isCompleted) {
+        console.log("Challenge Accomplished! Saving completion status.");
+        
+        setMetadata((prevMetadata) => ({
+          ...prevMetadata,
+          isCompleted: true,
+        }));
+
+        onSaveContent(JSON.stringify({
+          ...metadata,
+          isCompleted: true,
+          initialCode: useChallengeEditorStore.getState().code,
+        }), false);
+      }
+    }, [isChallengeCompletedInStore, metadata, setMetadata, onSaveContent]);
+
+    if (!metadata || !metadata.language) {
       return (
         <div className="p-4 text-center text-muted-foreground">
           Loading challenge data...
@@ -72,18 +113,22 @@ export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata
       );
     }
 
-    const initialCode = metadata.initialCode || '';
-    const description = metadata.description || 'Loading challenge description...';
-    const tests = metadata.tests || [];
-
-    console.log("Intiial", initialCode)
+    const challenge = {
+      id: restOfProps.documentId || 'default-challenge-id',
+      language: metadata.language as any,
+      initialCode: metadata.initialCode,
+      testCases: metadata.tests,
+    };
 
     return (
       <ChallengeIDE
-        challenge={{
-          language: metadata.language as any,
-          initialCode: metadata.initialCode,
-          testCases: metadata.tests,
+        challenge={challenge}
+        onChange={(newCode: string) => {
+          const updatedMetadata = {
+            ...metadata,
+            initialCode: newCode,
+          };
+          onSaveContent(JSON.stringify(updatedMetadata), true);
         }}
       />
     );
@@ -94,8 +139,8 @@ export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata
       label: 'Run',
       description: 'Execute code without running tests for debugging.',
       onClick: async ({ content, setMetadata, metadata }) => {
-        const { run } = useChallengeEditorStore.getState(); // Get state directly from store
-        run(); // Call the run function from the store
+        const { run } = useChallengeEditorStore.getState();
+        run();
       },
     },
     {
@@ -104,8 +149,8 @@ export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata
       description: 'Run tests and submit the challenge.',
       variant: "default",
       onClick: async ({ content, setMetadata, metadata, appendMessage }) => {
-        const { submit } = useChallengeEditorStore.getState(); // Get state directly from store
-        submit(); // Call the submit function from the store
+        const { submit } = useChallengeEditorStore.getState();
+        submit();
       },
     },
   ],

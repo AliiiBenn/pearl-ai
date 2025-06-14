@@ -44,7 +44,6 @@ export const ChallengeEditor = ({ onChange }: ChallengeEditorProps) => {
       theme="vs-dark"
       onMount={handleEditorDidMount}
       options={{
-        minimap: { enabled: true },
         scrollBeyondLastLine: false,
         fontSize: 14,
         tabSize: currentLanguage === 'python' ? 4 : 2,

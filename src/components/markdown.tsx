@@ -38,7 +38,7 @@ const INITIAL_COMPONENTS: Partial<Components> = {
             className
           )}
           {...props}
-        >
+        > 
           {children}
         </span>
       )
