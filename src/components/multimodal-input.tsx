@@ -201,7 +201,7 @@ function PureMultimodalInput({
 
   return (
     <div className="relative w-full flex flex-col gap-4">
-      <AnimatePresence>
+      {messages.length > 0 && <AnimatePresence>
         {!isAtBottom && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -224,7 +224,7 @@ function PureMultimodalInput({
             </Button>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>}
 
       {messages.length === 0 &&
         attachments.length === 0 &&
@@ -298,7 +298,7 @@ function PureMultimodalInput({
       />
 
       <div className="absolute bottom-0 left-0 p-2 flex flex-row items-center gap-1">
-        <AttachmentsButton fileInputRef={fileInputRef} status={status} />
+        {/* <AttachmentsButton fileInputRef={fileInputRef} status={status} /> */}
         <ModelSelector
           session={{ user: user }}
           selectedModelId={selectedModelId}

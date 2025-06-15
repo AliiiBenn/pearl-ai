@@ -25,7 +25,10 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  userInformations,
 } from './schema';
+import * as schema from './schema'; // Import all your schemas
+
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -37,7 +40,7 @@ import { ChatSDKError } from '../errors';
 
 // biome-ignore lint: Forbidden non-null assertion.
 const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
+export const db = drizzle(client, { schema });
 
 export async function saveChat({
   id,
@@ -492,6 +495,24 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get stream ids by chat id',
+    );
+  }
+}
+
+
+
+export async function getUserInformationById({ userId }: { userId: string }) {
+  try {
+    const [userInformation] = await db
+      .select({ role: userInformations.role })
+      .from(userInformations)
+      .where(eq(userInformations.userId, userId))
+      .execute();
+    return userInformation;
+  } catch (error: any) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      error.message,
     );
   }
 }

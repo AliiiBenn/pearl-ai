@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDownIcon, LogOutIcon } from 'lucide-react';
+import { ChevronDownIcon, LogOutIcon, SettingsIcon, DollarSignIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
 
@@ -69,23 +69,30 @@ export function UserNav({ user }: { user: SupabaseUser }) {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="max-w-64">
-        <DropdownMenuLabel className="flex min-w-0 flex-col">
-          <span className="text-foreground truncate text-sm font-medium">
-            {isGuest ? 'Guest' : user.email}
-          </span>
-          <span className="text-muted-foreground truncate text-xs font-normal">
-            {isGuest ? 'Not logged in' : user.email}
-          </span>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">
+              {data?.user?.email}
+            </p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {isGuest ? 'Guest' : 'Member'}
+            </p>
+          </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem
-            data-testid="user-nav-item-theme"
-            className="cursor-pointer"
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            onClick={() => {
+              // router.push('/settings');
+            }}
           >
-            {`Toggle ${resolvedTheme === 'light' ? 'dark' : 'light'} mode`}
+            <SettingsIcon className="mr-2 h-4 w-4" />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push('/pricing')}>
+            <DollarSignIcon className="mr-2 h-4 w-4" />
+            Pricing
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

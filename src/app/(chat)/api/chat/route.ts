@@ -36,11 +36,13 @@ import type { Chat } from '@/lib/db/schema';
 import { differenceInSeconds } from 'date-fns';
 import { ChatSDKError } from '@/lib/errors';
 import { createClient } from '@/utils/supabase/server';
-import { Polar } from "@polar-sh/sdk";
+import { Ingestion } from "@polar-sh/ingestion";
+import { LLMStrategy } from "@polar-sh/ingestion/strategies/LLM";
 
-const polar = new Polar({
-  accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
-});
+// Initialize Polar ingestion with LLM strategy
+const llmIngestion = Ingestion({ accessToken: process.env.POLAR_ACCESS_TOKEN ?? "" })
+  .strategy(new LLMStrategy(myProvider.languageModel("chat-model")))
+  .ingest("gemini_25_usage");
 
 export const maxDuration = 60;
 
@@ -146,10 +148,15 @@ export async function POST(request: Request) {
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
+    // Get the wrapped LLM model with ingestion capabilities
+    const model = llmIngestion.client({
+      customerId: user.id
+    });
+
     const stream = createDataStream({
       execute: (dataStream) => {
         const result = streamText({
-          model: myProvider.languageModel(selectedChatModel),
+          model: model, // Use the wrapped model with ingestion
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages,
           maxSteps: 5,
@@ -204,24 +211,8 @@ export async function POST(request: Request) {
                     },
                   ],
                 });
-
-                // Envoyer l'événement d'utilisation à Polar
-                if (response.usage) {
-                  await polar.events.ingest({
-                    events: [{
-                      name: "ai_usage",
-                      customer_id: user.id, // Utilisation de customer_id au lieu de external_customer_id
-                      metadata: {
-                        model: selectedChatModel,
-                        total_tokens: response.usage.total_tokens,
-                        prompt_tokens: response.usage.prompt_tokens,
-                        completion_tokens: response.usage.completion_tokens
-                      }
-                    }]
-                  });
-                }
               } catch (error) {
-                console.error('Failed to save chat or send usage event', error);
+                console.error('Failed to save chat', error);
               }
             }
           },

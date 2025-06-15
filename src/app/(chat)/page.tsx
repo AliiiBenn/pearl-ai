@@ -6,6 +6,7 @@ import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { generateUUID } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { createClient } from '@/utils/supabase/server';
+import { getUserInformationById } from '@/lib/db/queries';
 
 export default async function Page() {
   const supabase = await createClient();
@@ -22,6 +23,9 @@ export default async function Page() {
   const cookieStore = await cookies();
   const modelIdFromCookie = cookieStore.get('chat-model');
 
+  console.log(user.id)
+  console.log(await getUserInformationById({ userId: user.id }));
+
   return (
     <>
       <Chat
@@ -31,7 +35,7 @@ export default async function Page() {
         initialChatModel={modelIdFromCookie?.value || DEFAULT_CHAT_MODEL}
         initialVisibilityType="private"
         isReadonly={false}
-        session={{ user }}
+        session={user}
         autoResume={false}
       />
       <DataStreamHandler id={id} />

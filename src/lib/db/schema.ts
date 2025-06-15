@@ -9,6 +9,11 @@ import {
   primaryKey,
   foreignKey,
   boolean,
+  unique,
+  integer,
+  serial,
+  jsonb,
+  pgEnum,
 } from 'drizzle-orm/pg-core';
 
 export const chat = pgTable('Chat', {
@@ -119,3 +124,59 @@ export const stream = pgTable(
 
 export type Stream = InferSelectModel<typeof stream>;
 
+export const userUsageMetrics = pgTable('user_usage_metrics', {
+  id: serial('id').primaryKey().notNull(),
+  userId: uuid('user_id').notNull(),
+  metricName: varchar('metric_name', { length: 255 }).notNull(),
+  metricValue: integer('metric_value').notNull().default(0),
+  lastUpdatedAt: timestamp('last_updated_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => {
+  return {
+    unq: unique('user_id_metric_name_unq').on(table.userId, table.metricName),
+  };
+});
+
+
+
+export const userRoleEnum = pgEnum('enum_user_informations_role', ['basic', 'lite', 'pro', 'max', 'admin']);
+export const userPreferencesThemeEnum = pgEnum('enum_user_informations_preferences_theme', ['light', 'dark', 'system']);
+
+// Define the structure for the nested preferences JSONB column
+export type UserPreferences = {
+  notifications?: {
+    friends?: boolean;
+  };
+  emails?: {
+    marketing?: boolean;
+    affiliates?: boolean;
+  };
+  theme?: 'light' | 'dark' | 'system';
+};
+
+
+// ... (existing chat, document, suggestion, stream schemas)
+
+export const userInformations = pgTable('user_informations', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').notNull(), // Matches Payload 'text' type
+  name: varchar('name'), // Matches Payload 'text' type
+  avatar: varchar('avatar'), // Matches Payload 'text' type
+  initials: varchar('initials'), // Matches Payload 'text' type
+  role: userRoleEnum('role').notNull().default('basic'), // Matches Payload 'select' type with default
+  // permissions: jsonb('permissions'), // Omitted for now as it's a relationship, not a direct column
+  preferences: jsonb('preferences').$type<UserPreferences>().default({ // Matches Payload 'group' type, stored as JSONB
+    notifications: { friends: true },
+    emails: { marketing: true, affiliates: true },
+    theme: 'system',
+  }),
+  customerId: varchar('customer_id'), // Matches Payload 'text' type
+
+  // Payload CMS automatically adds createdAt and updatedAt, often as timestamps without timezone
+  // If your database schema uses timestamp with time zone, keep that.
+  // If Payload manages these, they might be plain timestamp. I'll keep with timezone for robustness.
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type UserInformation = InferSelectModel<typeof userInformations>;
