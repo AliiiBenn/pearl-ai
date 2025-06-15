@@ -20,7 +20,7 @@ export const codeChallengeSchema = z.object({
 const codeChallengePrompt = `You are an expert at creating engaging and well-structured code challenges.
 When prompted with a title, generate a code challenge that includes:
 - A programming language.
-- Initial code (a function signature or basic structure).
+- Initial code (a function signature or basic structure). This code should provide a basic structure for the user to start from, but *never* provide the solution to the challenge. If the initial code includes a function, its body should contain only 'pass' (or the equivalent no-op statement for the chosen language).
 - A clear description of the problem.
 - A set of test cases, each with an input and its expected output.
 

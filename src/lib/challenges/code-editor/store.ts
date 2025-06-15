@@ -31,6 +31,8 @@ type ChallengeData = {
     input: string
     expectedOutput: string
   }>
+  onCompletion?: () => void
+  isCompleted?: boolean
 }
 
 export type TerminalTab = 'output' | 'tests'
@@ -66,6 +68,7 @@ interface ChallengeEditorStore {
   challengeInitialCode: string
   isCompleted: boolean
   setIsCompleted: (completed: boolean) => void
+  onCompletion?: () => void
 }
 
 export const useChallengeEditorStore = create<ChallengeEditorStore>()(
@@ -100,7 +103,10 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
           availableLanguages: [{ value: challenge.language, label: challenge.language.charAt(0).toUpperCase() + challenge.language.slice(1) }],
           challengeId: challenge.id,
           challengeInitialCode: challenge.initialCode,
+          onCompletion: challenge.onCompletion, 
+          isCompleted: challenge.isCompleted
         });
+
       },
 
       run: async () => {
@@ -146,6 +152,7 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
           testCases, // Get testCases from store
           setIsLoadingSubmit,
           setIsCompleted,
+          onCompletion,
         } = get()
 
         setIsLoadingSubmit(true)
@@ -180,20 +187,21 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
           if (submission.type === 'accepted') {
             setIsCompleted(true)
             console.log("Challenge Accomplished!")
+            if (get().onCompletion) {
+              console.log("hey")
+              get().onCompletion()
+            }
           } else {
             setIsCompleted(false)
           }
 
-          console.log('config tests', testCases) // Use testCases directly
           const testResults = await Promise.all(
             testCases.map(async (tc, index) => { // Use testCases directly
               const testCode = `${code}\n${tc.input}`
 
-              console.log('test code', testCode)
 
               const result = await compileCode(testCode, currentLanguage)
 
-              console.log('Result', result)
 
               let cleanOutput = result.success ? result.output : result.error || 'No output'
               cleanOutput = cleanOutput.replace(new RegExp(`^${tc.input}[\n\r]*`), '').trim()
@@ -201,7 +209,6 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
               // This part assumes 'submission' exists and has 'testsPassed'
               // Since 'submitCode' is commented, this logic needs review.
               // For now, setting success based on expected vs actual output
-              console.log(cleanOutput, tc.expectedOutput)
               const success = cleanOutput === tc.expectedOutput;
 
               return {
@@ -249,7 +256,7 @@ export const useChallengeEditorStore = create<ChallengeEditorStore>()(
         challengeId: state.challengeId,
         challengeInitialCode: state.challengeInitialCode,
         testCases: state.testCases,
-        isCompleted: state.isCompleted,
+        isCompleted: state.isCompleted
       }),
     },
   ),

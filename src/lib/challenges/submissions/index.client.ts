@@ -147,8 +147,6 @@ const runAllTests = async (
   for (const test of tests) {
     const codeWithInput = prepareCodeWithInput(code.content, test.input.content)
 
-    console.log("Test", codeWithInput)
-
     try {
       const result = (await Promise.race([
         compileCode(codeWithInput, code.language),

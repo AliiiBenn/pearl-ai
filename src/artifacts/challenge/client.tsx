@@ -10,7 +10,6 @@ import { useChallengeEditorStore } from '@/lib/challenges/code-editor/store';
 import { useEffect } from 'react';
 
 interface CodeChallengeMetadata {
-  outputs: Array<ConsoleOutput>;
   language: string;
   initialCode: string;
   tests: Array<{ input: string; expectedOutput: string }>;
@@ -22,40 +21,16 @@ export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata
   kind: 'challenge',
   description: 'Useful for creating and solving code challenges.',
   initialize: async ({ setMetadata, content }) => {
-    let challengeData: CodeChallengeMetadata = {
-      outputs: [],
-      language: '',
-      initialCode: '',
-      tests: [],
-      description: 'Loading challenge...',
-      isCompleted: false,
+    const parsedContent = content ? JSON.parse(content) : {};
+    const challengeData = {
+      language: parsedContent.language || '',
+      initialCode: parsedContent.initialCode || '',
+      tests: parsedContent.tests || [],
+      description: parsedContent.description || 'Challenge description.',
+      isCompleted: parsedContent.isCompleted || false,
     };
 
-    try {
-      if (content) {
-        const parsedContent = JSON.parse(content);
-        challengeData = {
-          outputs: [],
-          language: parsedContent.language || '',
-          initialCode: parsedContent.initialCode || '',
-          tests: parsedContent.tests || [],
-          description: parsedContent.description || 'Challenge description.',
-          isCompleted: parsedContent.isCompleted || false,
-        };
-      }
-    } catch (error) {
-      console.error('Error parsing challenge content:', error);
-      challengeData = {
-        outputs: [],
-        language: '',
-        initialCode: '',
-        tests: [],
-        description: 'Failed to load challenge data or new challenge.',
-        isCompleted: false,
-      };
-    }
-
-    setMetadata(challengeData);
+    setMetadata(challengeData)
   },
   onStreamPart: ({ streamPart, setArtifact, setMetadata }) => {
     const { initialize: initializeChallengeStore } = useChallengeEditorStore.getState();
@@ -70,42 +45,51 @@ export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata
       }));
       setMetadata((metadata) => ({
         ...metadata,
-        language: challengeData.language,
-        initialCode: challengeData.initialCode,
-        tests: challengeData.tests,
-        description: challengeData.description,
+        language: challengeData.language || '',
+        initialCode: challengeData.initialCode || '',
+        tests: challengeData.tests || [],
+        description: challengeData.description || 'Challenge description.',
         isCompleted: challengeData.isCompleted || false,
       }));
 
       initializeChallengeStore({
         id: (streamPart as any).documentId || 'generated-challenge',
-        language: challengeData.language,
-        initialCode: challengeData.initialCode,
-        testCases: challengeData.tests,
-      });
+        language: challengeData.language || '',
+        initialCode: challengeData.initialCode || '',
+        testCases: challengeData.tests || [],
+        isCompleted: challengeData.isCompleted
+    })
     }
   },
   content: ({ metadata, setMetadata, content: rawContent, onSaveContent, ...restOfProps }) => {
-    const { isCompleted: isChallengeCompletedInStore } = useChallengeEditorStore();
+    const { isCompleted: isChallengeCompletedInStore, setIsCompleted } = useChallengeEditorStore();
+
+    // useEffect(() => {
+    //   const currentMetadataIsCompleted = metadata?.isCompleted;
+
+    //   if (isChallengeCompletedInStore && !currentMetadataIsCompleted) {
+    //     console.log("Challenge Accomplished! Saving completion status.");
+
+    //     setMetadata((prevMetadata) => ({
+    //       ...prevMetadata,
+    //       isCompleted: true,
+    //     }));
+
+    //     onSaveContent(JSON.stringify({
+    //       ...metadata,
+    //       isCompleted: true,
+    //       initialCode: useChallengeEditorStore.getState().code,
+    //     }), false);
+    //   }
+    // }, [isChallengeCompletedInStore, metadata, setMetadata, onSaveContent]);
 
     useEffect(() => {
-      if (isChallengeCompletedInStore && !metadata.isCompleted) {
-        console.log("Challenge Accomplished! Saving completion status.");
-        
-        setMetadata((prevMetadata) => ({
-          ...prevMetadata,
-          isCompleted: true,
-        }));
-
-        onSaveContent(JSON.stringify({
-          ...metadata,
-          isCompleted: true,
-          initialCode: useChallengeEditorStore.getState().code,
-        }), false);
+      if (metadata?.isCompleted !== isChallengeCompletedInStore) {
+        setIsCompleted(metadata?.isCompleted ?? false);
       }
-    }, [isChallengeCompletedInStore, metadata, setMetadata, onSaveContent]);
+    }, [metadata?.isCompleted]);
 
-    if (!metadata || !metadata.language) {
+    if (!metadata || !metadata.language || !metadata.tests) {
       return (
         <div className="p-4 text-center text-muted-foreground">
           Loading challenge data...
@@ -123,12 +107,27 @@ export const challengeArtifact = new Artifact<'challenge', CodeChallengeMetadata
     return (
       <ChallengeIDE
         challenge={challenge}
+        isCompleted={metadata.isCompleted}
         onChange={(newCode: string) => {
           const updatedMetadata = {
             ...metadata,
             initialCode: newCode,
           };
           onSaveContent(JSON.stringify(updatedMetadata), true);
+        }}
+        onCompletion={() => {
+          useChallengeEditorStore.getState().setIsCompleted(true);
+          
+          // 2. Mettre à jour les métadonnées de l'artefact
+          const updatedMetadata = {
+            ...metadata,
+            isCompleted: true,
+            initialCode: useChallengeEditorStore.getState().code,
+          };
+          
+          setMetadata(updatedMetadata);
+
+          onSaveContent(JSON.stringify(updatedMetadata), false);
         }}
       />
     );

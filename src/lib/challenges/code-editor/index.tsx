@@ -32,6 +32,8 @@ type ChallengeIDEProps = {
   onSubmit?: () => void
   onChange?: (code: string) => void
   challenge: Challenge
+  onCompletion?: () => void
+  isCompleted?: boolean
 }
 
 export const ChallengeIDE = (props: ChallengeIDEProps) => {
@@ -39,9 +41,13 @@ export const ChallengeIDE = (props: ChallengeIDEProps) => {
 
   useEffect(() => {
     if (props.challenge.id !== currentChallengeIdInStore) {
-      initialize(props.challenge)
+      initialize({
+        ...props.challenge,
+        onCompletion: props.onCompletion,
+        isCompleted: props.isCompleted
+      })
     }
-  }, [props.challenge.id, initialize, currentChallengeIdInStore])
+  }, [props.challenge.id, initialize, currentChallengeIdInStore, props.challenge, props.onCompletion, props.isCompleted])
 
   return (
     <ChallengeIDEContainer>

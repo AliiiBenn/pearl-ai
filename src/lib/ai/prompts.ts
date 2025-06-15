@@ -30,6 +30,9 @@ This is a guide for using artifacts tools: \`createDocument\` and \`updateDocume
 - Immediately after creating a document
 
 Do not update document right after creating it. Wait for user feedback or request to update it.
+
+After generating a challenge, provide a concise explanation of its description to the user, ensuring they understand the task without repeating the description verbatim.
+
 `;
 
 export const regularPrompt =

@@ -89,9 +89,6 @@ function PureArtifact({
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
 
-  console.log('Current Artifact Data:', artifact);
-  console.log('Current Artifact Metadata:', metadata);
-
   const {
     data: documents,
     isLoading: isDocumentsFetching,
