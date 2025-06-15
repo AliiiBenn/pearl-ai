@@ -1,55 +1,71 @@
-import { IconInnerShadowTop } from "@tabler/icons-react";
-import * as React from "react";
+'use client';
 
+// REMOVE: import type { User } from 'next-auth';
+import { useRouter } from 'next/navigation';
+
+import { PlusIcon } from '@/components/icons';
+import { SidebarHistory } from '@/components/sidebar-history';
+import { Button } from '@/components/ui/button';
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { NavUser } from "./nav-user";
-import { createClient } from "@/utils/supabase/server";
+  useSidebar,
+} from '@/components/ui/sidebar';
+import Link from 'next/link';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
-export async function AppSidebar({
-  ...props
-}: React.ComponentProps<typeof Sidebar>) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+// NEW: Define a type for the Supabase user, consistent with lib/artifacts/server.ts
+interface SupabaseUser {
+  id: string;
+  email?: string | null; // email can be null in Supabase User
+}
 
-  console.log(user);
+export function AppSidebar({ user }: { user: SupabaseUser | undefined | null }) { // CHANGE: Use SupabaseUser type
+  const router = useRouter();
+  const { setOpenMobile } = useSidebar();
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar className="group-data-[side=left]:border-r-0">
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+          <div className="flex flex-row justify-between items-center">
+            <Link
+              href="/"
+              onClick={() => {
+                setOpenMobile(false);
+              }}
+              className="flex flex-row gap-3 items-center"
             >
-              <a href="#">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+              <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
+                Pearl AI
+              </span>
+            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  className="p-2 h-fit"
+                  onClick={() => {
+                    setOpenMobile(false);
+                    router.push('/');
+                    router.refresh();
+                  }}
+                >
+                  <PlusIcon />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent align="end">New Chat</TooltipContent>
+            </Tooltip>
+          </div>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent></SidebarContent>
-      <SidebarFooter>
-        <NavUser
-          user={{
-            name: user?.email ?? "John Doe",
-            email: user?.email ?? "john.doe@example.com",
-            avatar: `https://avatar.vercel.sh/${user?.email}`,
-          }}
-        />
-      </SidebarFooter>
+      <SidebarContent>
+        <SidebarHistory user={user} />
+      </SidebarContent>
     </Sidebar>
   );
 }
