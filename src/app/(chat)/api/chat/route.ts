@@ -36,6 +36,11 @@ import type { Chat } from '@/lib/db/schema';
 import { differenceInSeconds } from 'date-fns';
 import { ChatSDKError } from '@/lib/errors';
 import { createClient } from '@/utils/supabase/server';
+import { Polar } from "@polar-sh/sdk";
+
+const polar = new Polar({
+  accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
+});
 
 export const maxDuration = 60;
 
@@ -199,8 +204,22 @@ export async function POST(request: Request) {
                     },
                   ],
                 });
-              } catch (_) {
-                console.error('Failed to save chat');
+
+                // Send usage event to Polar
+                await polar.events.ingest({
+                  events: [{
+                    name: "ai_usage",
+                    external_customer_id: user.id,
+                    metadata: {
+                      model: selectedChatModel,
+                      total_tokens: response.usage?.total_tokens,
+                      prompt_tokens: response.usage?.prompt_tokens,
+                      completion_tokens: response.usage?.completion_tokens
+                    }
+                  }]
+                });
+              } catch (error) {
+                console.error('Failed to save chat or send usage event', error);
               }
             }
           },
@@ -256,107 +275,107 @@ export async function GET(request: Request) {
 
   const supabase = await createClient();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) {
-    return new ChatSDKError('unauthorized:chat').toResponse();
-  }
-
-  let chat: Chat;
-
-  try {
-    chat = await getChatById({ id: chatId });
-  } catch {
-    return new ChatSDKError('not_found:chat').toResponse();
-  }
-
-  if (!chat) {
-    return new ChatSDKError('not_found:chat').toResponse();
-  }
-
-  if (chat.visibility === 'private' && chat.userId !== user.id) {
-    return new ChatSDKError('forbidden:chat').toResponse();
-  }
-
-  const streamIds = await getStreamIdsByChatId({ chatId });
-
-  if (!streamIds.length) {
-    return new ChatSDKError('not_found:stream').toResponse();
-  }
-
-  const recentStreamId = streamIds.at(-1);
-
-  if (!recentStreamId) {
-    return new ChatSDKError('not_found:stream').toResponse();
-  }
-
-  const emptyDataStream = createDataStream({
-    execute: () => {},
-  });
-
-  const stream = await streamContext.resumableStream(
-    recentStreamId,
-    () => emptyDataStream,
-  );
-
-  if (!stream) {
-    const messages = await getMessagesByChatId({ id: chatId });
-    const mostRecentMessage = messages.at(-1);
-
-    if (!mostRecentMessage) {
-      return new Response(emptyDataStream, { status: 200 });
+    if (!user) {
+      return new ChatSDKError('unauthorized:chat').toResponse();
     }
 
-    if (mostRecentMessage.role !== 'assistant') {
-      return new Response(emptyDataStream, { status: 200 });
+    let chat: Chat;
+
+    try {
+      chat = await getChatById({ id: chatId });
+    } catch {
+      return new ChatSDKError('not_found:chat').toResponse();
     }
 
-    const messageCreatedAt = new Date(mostRecentMessage.createdAt);
-
-    if (differenceInSeconds(resumeRequestedAt, messageCreatedAt) > 15) {
-      return new Response(emptyDataStream, { status: 200 });
+    if (!chat) {
+      return new ChatSDKError('not_found:chat').toResponse();
     }
 
-    const restoredStream = createDataStream({
-      execute: (buffer) => {
-        buffer.writeData({
-          type: 'append-message',
-          message: JSON.stringify(mostRecentMessage),
-        });
-      },
+    if (chat.visibility === 'private' && chat.userId !== user.id) {
+      return new ChatSDKError('forbidden:chat').toResponse();
+    }
+
+    const streamIds = await getStreamIdsByChatId({ chatId });
+
+    if (!streamIds.length) {
+      return new ChatSDKError('not_found:stream').toResponse();
+    }
+
+    const recentStreamId = streamIds.at(-1);
+
+    if (!recentStreamId) {
+      return new ChatSDKError('not_found:stream').toResponse();
+    }
+
+    const emptyDataStream = createDataStream({
+      execute: () => {},
     });
 
-    return new Response(restoredStream, { status: 200 });
+    const stream = await streamContext.resumableStream(
+      recentStreamId,
+      () => emptyDataStream,
+    );
+
+    if (!stream) {
+      const messages = await getMessagesByChatId({ id: chatId });
+      const mostRecentMessage = messages.at(-1);
+
+      if (!mostRecentMessage) {
+        return new Response(emptyDataStream, { status: 200 });
+      }
+
+      if (mostRecentMessage.role !== 'assistant') {
+        return new Response(emptyDataStream, { status: 200 });
+      }
+
+      const messageCreatedAt = new Date(mostRecentMessage.createdAt);
+
+      if (differenceInSeconds(resumeRequestedAt, messageCreatedAt) > 15) {
+        return new Response(emptyDataStream, { status: 200 });
+      }
+
+      const restoredStream = createDataStream({
+        execute: (buffer) => {
+          buffer.writeData({
+            type: 'append-message',
+            message: JSON.stringify(mostRecentMessage),
+          });
+        },
+      });
+
+      return new Response(restoredStream, { status: 200 });
+    }
+
+    return new Response(stream, { status: 200 });
   }
 
-  return new Response(stream, { status: 200 });
-}
+  export async function DELETE(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
-export async function DELETE(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
+    if (!id) {
+      return new ChatSDKError('bad_request:api').toResponse();
+    }
 
-  if (!id) {
-    return new ChatSDKError('bad_request:api').toResponse();
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return new ChatSDKError('unauthorized:chat').toResponse();
+    }
+
+    const chat = await getChatById({ id });
+
+    if (chat.userId !== user.id) {
+      return new ChatSDKError('forbidden:chat').toResponse();
+    }
+
+    const deletedChat = await deleteChatById({ id });
+
+    return Response.json(deletedChat, { status: 200 });
   }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return new ChatSDKError('unauthorized:chat').toResponse();
-  }
-
-  const chat = await getChatById({ id });
-
-  if (chat.userId !== user.id) {
-    return new ChatSDKError('forbidden:chat').toResponse();
-  }
-
-  const deletedChat = await deleteChatById({ id });
-
-  return Response.json(deletedChat, { status: 200 });
-}
