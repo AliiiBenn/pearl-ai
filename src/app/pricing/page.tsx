@@ -6,17 +6,25 @@ import { createClient } from "@/utils/supabase/server";
 import Link from "next/link";
 import { Pricing2 } from "./components/pricinng-cards";
 import { Polar } from "@polar-sh/sdk";
+import { Ingestion } from "@polar-sh/ingestion";
 
 const polar = new Polar({
   accessToken: process.env["POLAR_ACCESS_TOKEN"] ?? "",
   server: "sandbox",
 });
 
+const ingestion = Ingestion({
+  accessToken: process.env["POLAR_ACCESS_TOKEN"] ?? "",
+})
+
 export default async function Page() {
   const client = await createClient();
   const {
     data: { user },
   } = await client.auth.getUser();
+
+  console.log(await polar.customers.getStateExternal({ externalId: user?.id }))
+
 
 
   return (

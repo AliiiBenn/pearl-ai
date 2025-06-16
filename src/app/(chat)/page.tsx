@@ -7,6 +7,7 @@ import { generateUUID } from '@/lib/utils';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { createClient } from '@/utils/supabase/server';
 import { getUserInformationById } from '@/lib/db/queries';
+import { getRemainingCredits } from '@/lib/user/credits';
 
 export default async function Page() {
   const supabase = await createClient();
@@ -23,8 +24,12 @@ export default async function Page() {
   const cookieStore = await cookies();
   const modelIdFromCookie = cookieStore.get('chat-model');
 
-  console.log(user.id)
-  console.log(await getUserInformationById({ userId: user.id }));
+  const remainingCredits = await getRemainingCredits(user?.id);
+  console.log(remainingCredits);
+
+  const userInformation = await getUserInformationById({ userId: user?.id });
+  const isAdmin = userInformation?.role === 'admin';
+
 
   return (
     <>
@@ -37,6 +42,8 @@ export default async function Page() {
         isReadonly={false}
         session={user}
         autoResume={false}
+        remainingCredits={remainingCredits}
+        isAdmin={isAdmin}
       />
       <DataStreamHandler id={id} />
     </>

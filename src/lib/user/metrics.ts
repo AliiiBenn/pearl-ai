@@ -1,3 +1,5 @@
+'use server'
+
 import 'server-only';
 
 import { and, eq } from 'drizzle-orm';
@@ -10,7 +12,7 @@ import * as schema from '../db/schema';
 import { ChatSDKError } from '../errors';
 
 const client = postgres(process.env.POSTGRES_URL!); // biome-ignore lint: Forbidden non-null assertion.
-export const db = drizzle(client, { schema });
+const db = drizzle(client, { schema });
 
 // Fonctions pour manipuler les métriques des utilisateurs
 
@@ -50,6 +52,35 @@ export async function incrementMetric({
     );
   }
 }
+
+export const decrementMetric = async ({
+  userId,
+  metricName,
+  value = 1,
+}: {
+  userId: string;
+  metricName: string;
+  value?: number;
+}) => {
+  try {
+    const [existingMetric] = await db
+      .select()
+      .from(userUsageMetrics)
+      .where(and(eq(userUsageMetrics.userId, userId), eq(userUsageMetrics.metricName, metricName)));
+
+    if (existingMetric) {
+      await db
+        .update(userUsageMetrics)
+        .set({ metricValue: existingMetric.metricValue - value, lastUpdatedAt: new Date() })
+        .where(eq(userUsageMetrics.id, existingMetric.id));
+    }
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      `Failed to decrement metric ${metricName} for user ${userId}`,
+    );
+  }
+};
 
 export async function getMetricByUserIdAndName({
   userId,
@@ -112,3 +143,29 @@ export async function resetMetric({
     );
   }
 }
+
+
+export const createMetric = async ({
+  userId,
+  metricName,
+  value = 0,
+}: {
+  userId: string;
+  metricName: string;
+  value?: number;
+}) => {
+  try {
+    await db.insert(userUsageMetrics).values({
+      userId,
+      metricName,
+      metricValue: value,
+      createdAt: new Date(),
+      lastUpdatedAt: new Date(),
+    });
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      `Failed to create metric ${metricName} for user ${userId}`,
+    );
+  }
+};

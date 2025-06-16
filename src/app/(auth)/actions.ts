@@ -3,6 +3,7 @@
 import { z } from 'zod';
 
 import { createClient } from '@/utils/supabase/server';
+import { createMetric } from '@/lib/user/metrics';
 
 const authFormSchema = z.object({
   email: z.string().email(),
@@ -66,12 +67,18 @@ export const register = async (
       password: formData.get('password'),
     });
 
-    const { error } = await supabase.auth.signUp({
+    const { data,error } = await supabase.auth.signUp({
       email: validatedData.email,
       password: validatedData.password,
       options: {
         emailRedirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/callback`,
       },
+    });
+
+    await createMetric({
+      userId: data.user?.id,
+      metricName: 'credits',
+      value: 10,
     });
 
     if (error) {

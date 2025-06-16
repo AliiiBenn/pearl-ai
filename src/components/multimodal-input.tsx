@@ -46,6 +46,8 @@ function PureMultimodalInput({
   selectedVisibilityType,
   selectedModelId,
   user,
+  remainingCredits,
+  isAdmin,
 }: {
   chatId: string;
   input: UseChatHelpers['input'];
@@ -62,6 +64,8 @@ function PureMultimodalInput({
   selectedVisibilityType: VisibilityType;
   selectedModelId: string;
   user: User;
+  remainingCredits: number;
+  isAdmin: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -203,38 +207,29 @@ function PureMultimodalInput({
     <div className="relative w-full flex flex-col gap-4">
       {messages.length > 0 && <AnimatePresence>
         {!isAtBottom && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
+          <motion.button
+            className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 bg-background rounded-full p-2 shadow-lg"
+            onClick={scrollToBottom}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="absolute left-1/2 bottom-28 -translate-x-1/2 z-50"
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
           >
-            <Button
-              data-testid="scroll-to-bottom-button"
-              className="rounded-full"
-              size="icon"
-              variant="outline"
-              onClick={(event) => {
-                event.preventDefault();
-                scrollToBottom();
-              }}
-            >
-              <ArrowDown />
-            </Button>
-          </motion.div>
+            <ArrowDown size={24} />
+          </motion.button>
         )}
       </AnimatePresence>}
 
-      {messages.length === 0 &&
-        attachments.length === 0 &&
-        uploadQueue.length === 0 && (
-          <SuggestedActions
-            append={append}
-            chatId={chatId}
-            selectedVisibilityType={selectedVisibilityType}
-          />
-        )}
+      {(remainingCredits <= 0 && !isAdmin) && (
+        <p className="text-sm text-red-500 text-center">
+          You have no credits left. You cannot send more messages.
+        </p>
+      )}
+      {((remainingCredits > 0 && remainingCredits <= 5) && !isAdmin) && (
+        <p className="text-sm text-red-500 text-center">
+          Warning: You are running low on credits. Your access may be limited soon.
+        </p>
+      )}
 
       <input
         type="file"
@@ -242,7 +237,7 @@ function PureMultimodalInput({
         ref={fileInputRef}
         multiple
         onChange={handleFileChange}
-        tabIndex={-1}
+        accept="image/*,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       />
 
       {(attachments.length > 0 || uploadQueue.length > 0) && (
@@ -311,9 +306,10 @@ function PureMultimodalInput({
           <StopButton stop={stop} setMessages={setMessages} />
         ) : (
           <SendButton
-            input={input}
             submitForm={submitForm}
+            input={input}
             uploadQueue={uploadQueue}
+            disabled={remainingCredits <= 0 && !isAdmin}
           />
         )}
       </div>
@@ -326,12 +322,13 @@ export const MultimodalInput = memo(
   (prevProps, nextProps) => {
     if (prevProps.input !== nextProps.input) return false;
     if (prevProps.status !== nextProps.status) return false;
-    if (!equal(prevProps.attachments, nextProps.attachments)) return false;
+    if (prevProps.selectedModelId !== nextProps.selectedModelId) return false;
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType)
       return false;
-    if (prevProps.selectedModelId !== nextProps.selectedModelId) return false;
+    if (!equal(prevProps.attachments, nextProps.attachments)) return false;
     if (!equal(prevProps.user, nextProps.user)) return false;
-
+    if (prevProps.remainingCredits !== nextProps.remainingCredits) return false;
+    if (prevProps.isAdmin !== nextProps.isAdmin) return false;
     return true;
   },
 );
@@ -389,20 +386,22 @@ function PureSendButton({
   submitForm,
   input,
   uploadQueue,
+  disabled,
 }: {
   submitForm: () => void;
   input: string;
   uploadQueue: Array<string>;
+  disabled: boolean;
 }) {
   return (
     <Button
       data-testid="send-button"
-      className="rounded-full p-1.5 h-fit border dark:border-zinc-600"
+      className="rounded-full p-1.5 h-fit"
       onClick={(event) => {
         event.preventDefault();
         submitForm();
       }}
-      disabled={input.length === 0 || uploadQueue.length > 0}
+      disabled={disabled || input.length === 0 || uploadQueue.length > 0}
     >
       <ArrowUpIcon size={14} />
     </Button>

@@ -2,12 +2,14 @@ import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 
 import { Chat } from '@/components/chat';
-import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
+import { getChatById, getMessagesByChatId, getUserInformationById } from '@/lib/db/queries';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import type { DBMessage } from '@/lib/db/schema';
 import type { Attachment, UIMessage } from 'ai';
 import { createClient } from '@/utils/supabase/server';
+import { Polar } from "@polar-sh/sdk";
+import { getRemainingCredits } from '@/lib/user/credits';
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -59,6 +61,12 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 
   const currentSession = { user };
 
+  const remainingCredits = await getRemainingCredits(user?.id as string);
+
+  const userInformation = await getUserInformationById({ userId: user?.id as string });
+  const isAdmin = userInformation?.role === 'admin';
+
+
   if (!chatModelFromCookie) {
     return (
       <>
@@ -70,6 +78,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           isReadonly={user?.id !== chat.userId}
           session={currentSession.user}
           autoResume={true}
+          remainingCredits={remainingCredits}
+          isAdmin={isAdmin}
         />
         <DataStreamHandler id={id} />
       </>
@@ -86,6 +96,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         isReadonly={user?.id !== chat.userId}
         session={currentSession.user}
         autoResume={true}
+        remainingCredits={remainingCredits}
+        isAdmin={isAdmin}
       />
       <DataStreamHandler id={id} />
     </>

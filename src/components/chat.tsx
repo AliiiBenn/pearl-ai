@@ -21,6 +21,7 @@ import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
 import { User } from '@supabase/supabase-js';
+import { challengeCompletionToast } from '@/lib/challenges/components/challenge-completion-toast';
 
 export function Chat({
   id,
@@ -30,6 +31,8 @@ export function Chat({
   isReadonly,
   session,
   autoResume,
+  remainingCredits,
+  isAdmin,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -38,6 +41,8 @@ export function Chat({
   isReadonly: boolean;
   session: User;
   autoResume: boolean;
+  remainingCredits: number;
+  isAdmin: boolean;
 }) {
   const { mutate } = useSWRConfig();
 
@@ -117,6 +122,12 @@ export function Chat({
     setMessages,
   });
 
+  challengeCompletionToast({
+    type: 'success',
+    description: 'Event has been created.',
+  })
+
+
   return (
     <>
       <div className="flex flex-col min-w-0 h-dvh bg-background">
@@ -155,6 +166,8 @@ export function Chat({
               selectedVisibilityType={visibilityType}
               selectedModelId={initialChatModel}
               user={session}
+              remainingCredits={remainingCredits}
+              isAdmin={isAdmin}
             />
           )}
         </form>
