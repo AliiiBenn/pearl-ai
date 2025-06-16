@@ -33,6 +33,8 @@ export const myProvider = isTestEnvironment
           model: openrouter('google/gemini-2.5-flash-preview-05-20'),
           middleware: extractReasoningMiddleware({ tagName: 'think' }),
         }),
+        'gemini-2.5-flash-preview-05-20': openrouter('google/gemini-2.5-flash-preview-05-20'),
+        'deepseek-chat-v3-0324:free': openrouter('deepseek/deepseek-chat-v3-0324:free'),
         'title-model': openrouter('deepseek/deepseek-chat-v3-0324:free'),
         'artifact-model': openrouter('google/gemini-2.5-flash-preview-05-20'),
       }

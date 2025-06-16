@@ -14,7 +14,7 @@ export const entitlementsByUserType: Record<UserType, Entitlements> = {
    */
   guest: {
     maxMessagesPerDay: 20,
-    availableChatModelIds: ['chat-model', 'chat-model-reasoning'],
+    availableChatModelIds: ['chat-model', 'chat-model-reasoning', 'gemini-2.5-flash-preview-05-20', 'deepseek-chat-v3-0324:free'],
   },
 
   /*
@@ -22,7 +22,7 @@ export const entitlementsByUserType: Record<UserType, Entitlements> = {
    */
   authenticated: { // CHANGE: Renamed 'regular' to 'authenticated' for clarity with Supabase
     maxMessagesPerDay: 100,
-    availableChatModelIds: ['chat-model', 'chat-model-reasoning'],
+    availableChatModelIds: ['chat-model', 'chat-model-reasoning', 'gemini-2.5-flash-preview-05-20', 'deepseek-chat-v3-0324:free'],
   },
 
   /*

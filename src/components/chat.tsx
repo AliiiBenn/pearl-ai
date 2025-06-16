@@ -122,10 +122,6 @@ export function Chat({
     setMessages,
   });
 
-  challengeCompletionToast({
-    type: 'success',
-    description: 'Event has been created.',
-  })
 
 
   return (
