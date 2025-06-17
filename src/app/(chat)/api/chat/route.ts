@@ -36,9 +36,11 @@ import type { Chat } from '@/lib/db/schema';
 import { differenceInSeconds } from 'date-fns';
 import { ChatSDKError } from '@/lib/errors';
 import { createClient } from '@/utils/supabase/server';
-import { updateCredits } from '@/lib/user/credits';
-import { getRemainingCredits } from '@/lib/user/credits';
+import { Polar } from "@polar-sh/sdk";
 
+const polar = new Polar({
+  accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
+});
 
 export const maxDuration = 60;
 
@@ -85,12 +87,6 @@ export async function POST(request: Request) {
 
     if (!user) {
       return new ChatSDKError('unauthorized:chat').toResponse();
-    }
-
-
-    const creditsRemaining = await getRemainingCredits(user.id);
-    if (creditsRemaining < 0) {
-      return new ChatSDKError('rate_limit:chat').toResponse();
     }
 
     const messageCount = await getMessageCountByUserId({
@@ -150,23 +146,19 @@ export async function POST(request: Request) {
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
-
     const stream = createDataStream({
-      execute: async (dataStream) => {
+      execute: (dataStream) => {
         const result = streamText({
-          model: myProvider.languageModel(selectedChatModel), // Use the wrapped model with ingestion
+          model: myProvider.languageModel(selectedChatModel),
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages,
           maxSteps: 5,
-          experimental_activeTools:
-            selectedChatModel === 'chat-model-reasoning'
-              ? []
-              : [
-                  'getWeather',
-                  'createDocument',
-                  'updateDocument',
-                  'requestSuggestions',
-                ],
+          experimental_activeTools: [
+            'getWeather',
+            'createDocument',
+            'updateDocument',
+            'requestSuggestions',
+          ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
           tools: {
@@ -179,7 +171,6 @@ export async function POST(request: Request) {
             }),
           },
           onFinish: async ({ response }) => {
-
             if (user?.id) {
               try {
                 const assistantId = getTrailingMessageId({
@@ -210,8 +201,11 @@ export async function POST(request: Request) {
                     },
                   ],
                 });
+
+                // Envoyer l'événement d'utilisation à Polar
+                
               } catch (error) {
-                console.error('Failed to save chat', error);
+                console.error('Failed to save chat or send usage event', error);
               }
             }
           },
@@ -226,14 +220,9 @@ export async function POST(request: Request) {
         result.mergeIntoDataStream(dataStream, {
           sendReasoning: true,
         });
-
-
-        const usage = await result.usage;
-        await updateCredits(user.id, usage.promptTokens * 0.000015 + usage.completionTokens * 0.000060);
-        
       },
       onError: () => {
-        return 'Oops, an error occurred!';    
+        return 'Oops, an error occurred!';
       },
     });
 

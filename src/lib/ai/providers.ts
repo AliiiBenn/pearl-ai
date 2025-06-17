@@ -28,13 +28,10 @@ export const myProvider = isTestEnvironment
     })
   : customProvider({
       languageModels: {
-        'chat-model': openrouter('google/gemini-2.5-flash-preview-05-20'),
-        'chat-model-reasoning': wrapLanguageModel({
-          model: openrouter('google/gemini-2.5-flash-preview-05-20'),
-          middleware: extractReasoningMiddleware({ tagName: 'think' }),
-        }),
         'gemini-2.5-flash-preview-05-20': openrouter('google/gemini-2.5-flash-preview-05-20'),
-        'deepseek-chat-v3-0324:free': openrouter('deepseek/deepseek-chat-v3-0324:free'),
+        'deepseek/deepseek-chat-v3-0324:free': openrouter('deepseek/deepseek-chat-v3-0324:free'),
+        'deepseek/deepseek-r1-0528:free': openrouter('deepseek/deepseek-r1-0528:free'),
+        'moonshotai/kimi-dev-72b:free': openrouter('moonshotai/kimi-dev-72b:free'),
         'title-model': openrouter('deepseek/deepseek-chat-v3-0324:free'),
         'artifact-model': openrouter('google/gemini-2.5-flash-preview-05-20'),
       }

@@ -209,7 +209,7 @@ function PureMultimodalInput({
         {!isAtBottom && (
           <motion.button
             className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 bg-background rounded-full p-2 shadow-lg"
-            onClick={scrollToBottom}
+            onClick={() => scrollToBottom()}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}

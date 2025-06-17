@@ -1,4 +1,4 @@
-export const DEFAULT_CHAT_MODEL: string = 'chat-model';
+export const DEFAULT_CHAT_MODEL: string = 'gemini-2.5-flash-preview-05-20';
 
 export interface ChatModel {
   id: string;
@@ -8,23 +8,23 @@ export interface ChatModel {
 
 export const chatModels: Array<ChatModel> = [
   {
-    id: 'chat-model',
-    name: 'Chat model',
+    id: 'gemini-2.5-flash-preview-05-20',
+    name: 'Gemini 2.5 Flash Preview',
     description: 'Primary model for all-purpose chat',
   },
   {
-    id: 'chat-model-reasoning',
-    name: 'Reasoning model',
-    description: 'Uses advanced reasoning',
-  },
-  {
-    id: 'gemini-2.5-flash-preview-05-20',
-    name: 'Gemini 2.5 Flash Preview',
-    description: 'Uses advanced reasoning',
-  },
-  {
-    id: 'deepseek-chat-v3-0324:free',
+    id: 'deepseek/deepseek-chat-v3-0324:free',
     name: 'DeepSeek Chat V3',
-    description: 'Uses advanced reasoning',
+    description: 'DeepSeek Chat V3',
+  },
+  {
+    id: 'deepseek/deepseek-r1-0528:free',
+    name: 'DeepSeek R1',
+    description: 'DeepSeek R1',
+  },
+  {
+    id: 'moonshotai/kimi-dev-72b:free',
+    name: 'Moonshot AI Kimi',
+    description: 'Moonshot AI Kimi',
   },
 ];

@@ -23,7 +23,7 @@ export const postRequestBodySchema = z.object({
       )
       .optional(),
   }),
-  selectedChatModel: z.enum(['chat-model', 'chat-model-reasoning']),
+  selectedChatModel: z.enum(['gemini-2.5-flash-preview-05-20', 'deepseek/deepseek-chat-v3-0324:free', 'deepseek/deepseek-r1-0528:free', 'moonshotai/kimi-dev-72b:free']),
   selectedVisibilityType: z.enum(['public', 'private']),
 });
 
