@@ -10,7 +10,7 @@ export const chatModels: Array<ChatModel> = [
   {
     id: 'gemini-2.5-flash-preview-05-20',
     name: 'Gemini 2.5 Flash Preview',
-    description: 'Primary model for all-purpose chat',
+    description: 'Use This Model If You Want To Create Challenges',
   },
   {
     id: 'deepseek/deepseek-chat-v3-0324:free',

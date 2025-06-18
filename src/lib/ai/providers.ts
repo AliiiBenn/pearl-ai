@@ -28,9 +28,15 @@ export const myProvider = isTestEnvironment
     })
   : customProvider({
       languageModels: {
-        'gemini-2.5-flash-preview-05-20': openrouter('google/gemini-2.5-flash-preview-05-20'),
+        'gemini-2.5-flash-preview-05-20': wrapLanguageModel({
+          model: openrouter('google/gemini-2.5-flash-preview-05-20'),
+          middleware: extractReasoningMiddleware({ tagName: 'think' })
+        }),
         'deepseek/deepseek-chat-v3-0324:free': openrouter('deepseek/deepseek-chat-v3-0324:free'),
-        'deepseek/deepseek-r1-0528:free': openrouter('deepseek/deepseek-r1-0528:free'),
+        'deepseek/deepseek-r1-0528:free': wrapLanguageModel({
+          model: openrouter('deepseek/deepseek-r1-0528:free'),
+          middleware: extractReasoningMiddleware({ tagName: 'think' })
+        }),
         'moonshotai/kimi-dev-72b:free': openrouter('moonshotai/kimi-dev-72b:free'),
         'title-model': openrouter('deepseek/deepseek-chat-v3-0324:free'),
         'artifact-model': openrouter('google/gemini-2.5-flash-preview-05-20'),

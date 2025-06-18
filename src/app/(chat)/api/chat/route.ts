@@ -37,10 +37,13 @@ import { differenceInSeconds } from 'date-fns';
 import { ChatSDKError } from '@/lib/errors';
 import { createClient } from '@/utils/supabase/server';
 import { Polar } from "@polar-sh/sdk";
+import { getRemainingCredits } from '@/lib/user/credits';
+
 
 const polar = new Polar({
   accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
 });
+
 
 export const maxDuration = 60;
 
@@ -88,6 +91,13 @@ export async function POST(request: Request) {
     if (!user) {
       return new ChatSDKError('unauthorized:chat').toResponse();
     }
+
+    const remainingCredits = await getRemainingCredits(user?.id);
+  
+    if (remainingCredits <= 0) {
+      return new ChatSDKError('unauthorized:chat').toResponse();
+    }
+
 
     const messageCount = await getMessageCountByUserId({
       id: user.id,
@@ -208,6 +218,8 @@ export async function POST(request: Request) {
                 console.error('Failed to save chat or send usage event', error);
               }
             }
+
+            
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
